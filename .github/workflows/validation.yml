@@ -13,6 +13,11 @@ permissions:
 env:
   NODE_ENV: test
   TRADING_MODE: PAPER
+  DATABASE_URL: "ci://local-test"
+  REDIS_URL: "redis://localhost:6379"
+  SOLANA_RPC_URL: "https://api.mainnet-beta.solana.com"
+  SOLANA_WS_URL: "wss://api.mainnet-beta.solana.com"
+  DEXSCREENER_BASE_URL: "https://api.dexscreener.com"
 
 jobs:
   quality:

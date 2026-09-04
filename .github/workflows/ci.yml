@@ -9,6 +9,14 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  REDIS_URL: redis://localhost:6379
+  SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+  DEXSCREENER_BASE_URL: https://api.dexscreener.com
+  TRADING_MODE: PAPER
+
 jobs:
   quality:
     runs-on: ubuntu-latest

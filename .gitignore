@@ -9,3 +9,5 @@ coverage/
 .vscode/
 .idea/
 .prisma/
+postgres_data/
+redis_data/

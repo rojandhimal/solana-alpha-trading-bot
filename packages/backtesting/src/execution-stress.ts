@@ -31,6 +31,18 @@ function maxDrawdownPct(equityCurve: readonly number[]): number {
   return worst;
 }
 
+function effectiveSlippage(baseSlippagePct: number, parameters: StressParameters): number {
+  if (parameters.liquidityMultiplier <= 0) throw new Error("liquidityMultiplier must be positive");
+  if (parameters.executionDelayBars < 0) throw new Error("executionDelayBars must be non-negative");
+  if (parameters.volatilityMultiplier <= 0) throw new Error("volatilityMultiplier must be positive");
+
+  // Deterministic paper-trading proxy: thinner liquidity, execution delay, and
+  // volatility each increase adverse execution cost without requiring future prices.
+  const liquidityFactor = 1 / parameters.liquidityMultiplier;
+  const delayFactor = 1 + parameters.executionDelayBars * 0.25;
+  return baseSlippagePct * parameters.slippageMultiplier * liquidityFactor * delayFactor * parameters.volatilityMultiplier;
+}
+
 export function simulateExecutionStress(
   trades: readonly SimulatedTrade[],
   parameters: StressParameters,
@@ -39,11 +51,13 @@ export function simulateExecutionStress(
   initialCapital = 1_000
 ): ExecutionStressResult {
   if (initialCapital <= 0) throw new Error("initialCapital must be positive");
+  if (baseSlippagePct < 0 || baseFeePct < 0) throw new Error("base execution costs must be non-negative");
 
+  const slippage = effectiveSlippage(baseSlippagePct, parameters);
   const stressedTrades = trades.map((trade) => ({
     ...trade,
-    entryPrice: adjustedEntry(trade.entryPrice, trade.side, baseSlippagePct * parameters.slippageMultiplier),
-    exitPrice: adjustedExit(trade.exitPrice, trade.side, baseSlippagePct * parameters.slippageMultiplier)
+    entryPrice: adjustedEntry(trade.entryPrice, trade.side, slippage),
+    exitPrice: adjustedExit(trade.exitPrice, trade.side, slippage)
   }));
 
   let grossProfit = 0;

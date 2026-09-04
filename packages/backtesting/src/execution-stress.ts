@@ -10,6 +10,7 @@ export interface SimulatedTrade {
 export interface ExecutionStressResult {
   trades: SimulatedTrade[];
   metrics: StressMetrics;
+  equityCurve: number[];
 }
 
 function adjustedEntry(price: number, side: SimulatedTrade["side"], slippage: number): number {
@@ -20,12 +21,25 @@ function adjustedExit(price: number, side: SimulatedTrade["side"], slippage: num
   return side === "LONG" ? price * (1 - slippage) : price * (1 + slippage);
 }
 
+function maxDrawdownPct(equityCurve: readonly number[]): number {
+  let peak = equityCurve[0] ?? 0;
+  let worst = 0;
+  for (const equity of equityCurve) {
+    peak = Math.max(peak, equity);
+    if (peak > 0) worst = Math.max(worst, ((peak - equity) / peak) * 100);
+  }
+  return worst;
+}
+
 export function simulateExecutionStress(
   trades: readonly SimulatedTrade[],
   parameters: StressParameters,
   baseSlippagePct = 0.001,
-  baseFeePct = 0.001
+  baseFeePct = 0.001,
+  initialCapital = 1_000
 ): ExecutionStressResult {
+  if (initialCapital <= 0) throw new Error("initialCapital must be positive");
+
   const stressedTrades = trades.map((trade) => ({
     ...trade,
     entryPrice: adjustedEntry(trade.entryPrice, trade.side, baseSlippagePct * parameters.slippageMultiplier),
@@ -35,23 +49,28 @@ export function simulateExecutionStress(
   let grossProfit = 0;
   let grossLoss = 0;
   let net = 0;
-  let wins = 0;
+  let equity = initialCapital;
+  const equityCurve = [equity];
+
   for (const trade of stressedTrades) {
     const direction = trade.side === "LONG" ? 1 : -1;
     const pnl = (trade.exitPrice - trade.entryPrice) * trade.quantity * direction;
     const fees = (trade.entryPrice + trade.exitPrice) * trade.quantity * baseFeePct * parameters.feeMultiplier;
     const value = pnl - fees;
     net += value;
-    if (value > 0) { grossProfit += value; wins += 1; }
+    equity += value;
+    equityCurve.push(equity);
+    if (value > 0) grossProfit += value;
     else grossLoss += Math.abs(value);
   }
 
   const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Number.POSITIVE_INFINITY : 0) : grossProfit / grossLoss;
   return {
     trades: stressedTrades,
+    equityCurve,
     metrics: {
-      totalReturnPct: net,
-      maxDrawdownPct: 0,
+      totalReturnPct: (net / initialCapital) * 100,
+      maxDrawdownPct: maxDrawdownPct(equityCurve),
       tradeCount: stressedTrades.length,
       profitFactor,
       expectancy: stressedTrades.length === 0 ? 0 : net / stressedTrades.length

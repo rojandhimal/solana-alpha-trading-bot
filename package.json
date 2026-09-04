@@ -1,0 +1,27 @@
+{
+  "name": "solana-alpha-trading-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Research-grade Solana token scanning and paper trading platform",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": { "node": ">=20" },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  }
+}

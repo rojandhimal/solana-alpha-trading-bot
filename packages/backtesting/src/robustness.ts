@@ -16,6 +16,10 @@ export interface RobustnessReport {
   failures: string[];
 }
 
+function validMetric(value: number): boolean {
+  return !Number.isNaN(value) && value !== Number.NEGATIVE_INFINITY;
+}
+
 export function evaluateRobustness(
   results: readonly StressScenarioResult[],
   thresholds: RobustnessThresholds
@@ -30,9 +34,9 @@ export function evaluateRobustness(
   }
 
   const passing = results.filter(({ metrics }) =>
-    Number.isFinite(metrics.maxDrawdownPct) &&
-    Number.isFinite(metrics.profitFactor) &&
-    Number.isFinite(metrics.expectancy) &&
+    validMetric(metrics.maxDrawdownPct) &&
+    validMetric(metrics.profitFactor) &&
+    validMetric(metrics.expectancy) &&
     metrics.maxDrawdownPct <= thresholds.maxDrawdownPct &&
     metrics.profitFactor >= thresholds.minProfitFactor &&
     metrics.expectancy > thresholds.minExpectancy

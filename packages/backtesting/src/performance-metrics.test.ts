@@ -17,7 +17,22 @@ const result: PortfolioAccountingResult = {
   ]
 };
 
-const trade = (netPnl: number): CompletedTrade => ({ entryIndex: 0, exitIndex: 1, side: "LONG", quantity: 1, entryPrice: 100, exitPrice: 100 + netPnl, entryFee: 0, exitFee: 0, grossPnl: netPnl, netPnl, returnPct: netPnl, holdingBars: 1 });
+const trade = (netPnl: number): CompletedTrade => ({
+  entryIndex: 0,
+  exitIndex: 1,
+  side: "LONG",
+  quantity: 1,
+  entryReferencePrice: 100,
+  exitReferencePrice: 100 + netPnl,
+  entryPrice: 100,
+  exitPrice: 100 + netPnl,
+  entryFee: 0,
+  exitFee: 0,
+  grossPnl: netPnl,
+  netPnl,
+  returnPct: netPnl,
+  holdingBars: 1
+});
 
 describe("performance metrics", () => {
   it("calculates return and maximum drawdown from the accounting result", () => {

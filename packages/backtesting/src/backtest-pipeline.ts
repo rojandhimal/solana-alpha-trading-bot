@@ -4,6 +4,7 @@ import { calculatePerformanceMetrics, type PerformanceMetrics } from "./performa
 import { accountFills, type PortfolioAccountingResult } from "./portfolio-accounting.js";
 import { evaluateRobustness, type RobustnessReport, type RobustnessThresholds } from "./robustness.js";
 import { runStressScenarios, type StressScenario, type StressScenarioResult, type StressParameters } from "./stress-testing.js";
+import { simulateExecutionStress, type SimulatedTrade } from "./execution-stress.js";
 
 export interface BacktestPipelineInput {
   candles: readonly Candle[];
@@ -22,13 +23,21 @@ export interface BacktestPipelineResult {
   robustness: RobustnessReport;
 }
 
+function tradesForExecutionStress(trades: readonly CompletedTrade[]): SimulatedTrade[] {
+  return trades.map((trade) => ({ entryPrice: trade.entryPrice, exitPrice: trade.exitPrice, quantity: trade.quantity, side: trade.side }));
+}
+
 export function runBacktestPipeline(input: BacktestPipelineInput): BacktestPipelineResult {
   const baseline = accountFills(input.candles, input.fills, input.initialCapital);
   const trades = attributeLongTrades(input.fills);
   const metrics = calculatePerformanceMetrics(baseline, trades);
 
   const stressResults = runStressScenarios(input.stressScenarios, (parameters, scenario) => {
-    const stressedFills = input.runScenario ? input.runScenario(input.fills, parameters, scenario) : input.fills;
+    if (!input.runScenario) {
+      return simulateExecutionStress(tradesForExecutionStress(trades), parameters, undefined, undefined, input.initialCapital).metrics;
+    }
+
+    const stressedFills = input.runScenario(input.fills, parameters, scenario);
     const accounting = accountFills(input.candles, stressedFills, input.initialCapital);
     const stressedTrades = attributeLongTrades(stressedFills);
     const stressedMetrics = calculatePerformanceMetrics(accounting, stressedTrades);

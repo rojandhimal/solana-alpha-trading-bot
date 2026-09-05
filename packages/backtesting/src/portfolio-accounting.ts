@@ -23,10 +23,15 @@ export interface PortfolioAccountingResult {
   completedTrades: number;
 }
 
+export interface PortfolioAccountingOptions {
+  allowShort?: boolean;
+}
+
 export function accountFills(
   candles: readonly Candle[],
   fills: readonly ExecutionFill[],
-  initialCapital: number
+  initialCapital: number,
+  options: PortfolioAccountingOptions = {}
 ): PortfolioAccountingResult {
   if (!Number.isFinite(initialCapital) || initialCapital <= 0) throw new Error("initialCapital must be positive");
 
@@ -56,27 +61,57 @@ export function accountFills(
       feesPaid += fill.fee;
 
       if (fill.side === "BUY") {
-        const totalCost = notional + fill.fee;
-        if (totalCost > cash + 1e-9) throw new Error(`insufficient cash for BUY at execution index ${index}`);
-        cash -= totalCost;
-        const previousCostBasis = costBasis;
-        positionQuantity += fill.quantity;
-        costBasis += totalCost;
-        averageEntryPrice = (previousCostBasis + notional) / positionQuantity;
-      } else {
-        if (fill.quantity > positionQuantity + 1e-9) throw new Error(`SELL quantity exceeds position at execution index ${index}`);
-        const allocatedCost = positionQuantity === 0 ? 0 : costBasis * (fill.quantity / positionQuantity);
-        cash += notional - fill.fee;
-        realizedPnl += notional - fill.fee - allocatedCost;
-        costBasis -= allocatedCost;
-        positionQuantity -= fill.quantity;
-        if (positionQuantity <= 1e-9) {
-          positionQuantity = 0;
-          averageEntryPrice = 0;
-          costBasis = 0;
-          completedTrades += 1;
+        if (positionQuantity < 0) {
+          const coverQuantity = Math.min(fill.quantity, Math.abs(positionQuantity));
+          const allocatedCost = Math.abs(positionQuantity) === 0 ? 0 : costBasis * (coverQuantity / Math.abs(positionQuantity));
+          cash -= fill.fillPrice * coverQuantity + fill.fee * (coverQuantity / fill.quantity);
+          realizedPnl += allocatedCost - fill.fillPrice * coverQuantity - fill.fee * (coverQuantity / fill.quantity);
+          costBasis -= allocatedCost;
+          positionQuantity += coverQuantity;
+          if (Math.abs(positionQuantity) <= 1e-9) {
+            positionQuantity = 0;
+            averageEntryPrice = 0;
+            costBasis = 0;
+            completedTrades += 1;
+          } else averageEntryPrice = costBasis / Math.abs(positionQuantity);
+
+          const remaining = fill.quantity - coverQuantity;
+          if (remaining > 1e-9) {
+            const remainingNotional = fill.fillPrice * remaining;
+            cash -= remainingNotional + fill.fee * (remaining / fill.quantity);
+            positionQuantity += remaining;
+            costBasis = remainingNotional;
+            averageEntryPrice = fill.fillPrice;
+          }
         } else {
-          averageEntryPrice = costBasis / positionQuantity;
+          const totalCost = notional + fill.fee;
+          if (totalCost > cash + 1e-9) throw new Error(`insufficient cash for BUY at execution index ${index}`);
+          cash -= totalCost;
+          const previousCostBasis = costBasis;
+          positionQuantity += fill.quantity;
+          costBasis += notional;
+          averageEntryPrice = (previousCostBasis + notional) / positionQuantity;
+        }
+      } else {
+        if (positionQuantity > 0) {
+          if (fill.quantity > positionQuantity + 1e-9) throw new Error(`SELL quantity exceeds position at execution index ${index}`);
+          const allocatedCost = costBasis * (fill.quantity / positionQuantity);
+          cash += notional - fill.fee;
+          realizedPnl += notional - fill.fee - allocatedCost;
+          costBasis -= allocatedCost;
+          positionQuantity -= fill.quantity;
+          if (positionQuantity <= 1e-9) {
+            positionQuantity = 0;
+            averageEntryPrice = 0;
+            costBasis = 0;
+            completedTrades += 1;
+          } else averageEntryPrice = costBasis / positionQuantity;
+        } else {
+          if (!options.allowShort) throw new Error(`SELL quantity exceeds position at execution index ${index}`);
+          cash += notional - fill.fee;
+          positionQuantity -= fill.quantity;
+          costBasis += notional;
+          averageEntryPrice = costBasis / Math.abs(positionQuantity);
         }
       }
     }
@@ -85,10 +120,9 @@ export function accountFills(
     if (!candle) continue;
     const positionValue = positionQuantity * candle.close;
     const equity = cash + positionValue;
-    const unrealizedPnl = positionValue - costBasis;
+    const unrealizedPnl = positionQuantity >= 0 ? positionValue - costBasis : costBasis + positionValue;
     peakEquity = Math.max(peakEquity, equity);
     const drawdownPct = peakEquity === 0 ? 0 : ((peakEquity - equity) / peakEquity) * 100;
-
     equityCurve.push({ index, cash, positionQuantity, averageEntryPrice, positionValue, equity, realizedPnl, unrealizedPnl, feesPaid, drawdownPct });
   }
 

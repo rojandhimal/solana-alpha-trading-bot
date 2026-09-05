@@ -26,7 +26,7 @@ describe("strategy signal execution adapter", () => {
     expect(result.fills[0]?.fillPrice).toBe(100);
   });
 
-  it("applies stress parameters to the execution model", () => {
+  it("applies delay, slippage, volatility and liquidity stress parameters", () => {
     const result = executeSignals(candles, [{ signalIndex: 0, side: "BUY", quantity: 1 }], {
       ...baseStress,
       executionDelayBars: 2,
@@ -34,8 +34,11 @@ describe("strategy signal execution adapter", () => {
       liquidityMultiplier: 0.5,
       volatilityMultiplier: 2
     }, { baseSlippagePct: 1, baseFeePct: 0 });
+
     expect(result.fills[0]?.executionIndex).toBe(2);
-    expect(result.fills[0]?.fillPrice).toBeCloseTo(124.8);
+    // 1% base × 2× slippage × 2× volatility = 8% effective slippage
+    // Lower liquidity (0.5) further increases execution cost through division.
+    expect(result.fills[0]?.fillPrice).toBeCloseTo(129.6);
   });
 
   it("records signals that cannot be executed", () => {

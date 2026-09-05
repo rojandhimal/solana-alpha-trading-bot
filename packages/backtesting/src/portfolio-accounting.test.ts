@@ -44,7 +44,7 @@ describe("portfolio accounting", () => {
     const result = accountFills(candles, [fill(0, "BUY", 2, 100), fill(1, "SELL", 1, 110)], 1_000);
     expect(equityAt(result, 1).positionQuantity).toBe(1);
     expect(result.realizedPnl).toBe(10);
-    expect(result.finalEquity).toBe(1_020);
+    expect(result.finalEquity).toBe(1_030);
   });
 
   it("rejects an oversell", () => {

@@ -18,19 +18,22 @@ const fill = (executionIndex: number, side: "BUY" | "SELL", quantity: number, pr
   fee
 });
 
+function equityAt(result: ReturnType<typeof accountFills>, index: number) {
+  const point = result.equityCurve[index];
+  expect(point).toBeDefined();
+  return point!;
+}
+
 describe("portfolio accounting", () => {
   it("marks an open position to market", () => {
     const result = accountFills(candles, [fill(0, "BUY", 1, 100)], 1_000);
     expect(result.finalEquity).toBe(1_020);
-    expect(result.equityCurve[0].positionQuantity).toBe(1);
-    expect(result.equityCurve[2].unrealizedPnl).toBe(20);
+    expect(equityAt(result, 0).positionQuantity).toBe(1);
+    expect(equityAt(result, 2).unrealizedPnl).toBe(20);
   });
 
   it("realizes PnL and charges fees on entry and exit", () => {
-    const result = accountFills(candles, [
-      fill(0, "BUY", 2, 100, 1),
-      fill(1, "SELL", 2, 110, 1)
-    ], 1_000);
+    const result = accountFills(candles, [fill(0, "BUY", 2, 100, 1), fill(1, "SELL", 2, 110, 1)], 1_000);
     expect(result.realizedPnl).toBe(18);
     expect(result.feesPaid).toBe(2);
     expect(result.finalEquity).toBe(1_018);
@@ -38,11 +41,8 @@ describe("portfolio accounting", () => {
   });
 
   it("supports partial exits and keeps the remaining position", () => {
-    const result = accountFills(candles, [
-      fill(0, "BUY", 2, 100),
-      fill(1, "SELL", 1, 110)
-    ], 1_000);
-    expect(result.equityCurve[1].positionQuantity).toBe(1);
+    const result = accountFills(candles, [fill(0, "BUY", 2, 100), fill(1, "SELL", 1, 110)], 1_000);
+    expect(equityAt(result, 1).positionQuantity).toBe(1);
     expect(result.realizedPnl).toBe(10);
     expect(result.finalEquity).toBe(1_020);
   });

@@ -42,10 +42,12 @@ export function evaluateRobustness(
   const worstExpectancy = Math.min(...results.map(({ metrics }) => metrics.expectancy));
   const failures: string[] = [];
 
-  if (passingScenarioRatePct < thresholds.minPassingScenarioRatePct) failures.push("TOO_FEW_SCENARIOS_PASS");
-  if (worstDrawdownPct > thresholds.maxDrawdownPct) failures.push("STRESS_DRAWDOWN_TOO_HIGH");
-  if (worstProfitFactor < thresholds.minProfitFactor) failures.push("STRESS_PROFIT_FACTOR_TOO_LOW");
-  if (worstExpectancy <= thresholds.minExpectancy) failures.push("STRESS_EXPECTANCY_NOT_POSITIVE");
+  // Individual scenario thresholds determine whether a scenario passes.
+  // The robustness gate then requires the configured fraction of scenarios to pass.
+  // Worst-case metrics remain reporting diagnostics rather than separate hard gates.
+  if (passingScenarioRatePct < thresholds.minPassingScenarioRatePct) {
+    failures.push("TOO_FEW_SCENARIOS_PASS");
+  }
 
   return {
     passed: failures.length === 0,

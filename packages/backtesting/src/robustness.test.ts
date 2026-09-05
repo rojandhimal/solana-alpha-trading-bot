@@ -23,6 +23,20 @@ describe("robustness evaluation", () => {
     expect(report.failures).toContain("TOO_FEW_SCENARIOS_PASS");
   });
 
+  it("accepts positive infinity profit factor when expectancy and drawdown are valid", () => {
+    const report = evaluateRobustness([
+      { scenario: "BASE" as const, parameters: {} as never, metrics: { totalReturnPct: 10, maxDrawdownPct: 2, tradeCount: 10, profitFactor: Number.POSITIVE_INFINITY, expectancy: 5 } }
+    ], { ...thresholds, minPassingScenarioRatePct: 100 });
+    expect(report.passed).toBe(true);
+  });
+
+  it("rejects NaN and negative infinity metrics", () => {
+    const report = evaluateRobustness([
+      { scenario: "BASE" as const, parameters: {} as never, metrics: { totalReturnPct: 10, maxDrawdownPct: Number.NaN, tradeCount: 10, profitFactor: 2, expectancy: 5 } }
+    ], { ...thresholds, minPassingScenarioRatePct: 100 });
+    expect(report.passed).toBe(false);
+  });
+
   it("rejects an empty stress run", () => {
     const report = evaluateRobustness([], thresholds);
     expect(report.failures).toContain("NO_STRESS_RESULTS");

@@ -5,6 +5,8 @@ export interface CompletedTrade {
   exitIndex: number;
   side: "LONG";
   quantity: number;
+  entryReferencePrice: number;
+  exitReferencePrice: number;
   entryPrice: number;
   exitPrice: number;
   entryFee: number;
@@ -18,6 +20,7 @@ export interface CompletedTrade {
 interface OpenLot {
   entryIndex: number;
   quantity: number;
+  entryReferencePrice: number;
   entryPrice: number;
   entryFeePerUnit: number;
 }
@@ -27,8 +30,9 @@ export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedT
   const trades: CompletedTrade[] = [];
 
   for (const fill of fills) {
+    if (fill.quantity <= 0) throw new Error("fill quantity must be positive");
     if (fill.side === "BUY") {
-      lots.push({ entryIndex: fill.executionIndex, quantity: fill.quantity, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity });
+      lots.push({ entryIndex: fill.executionIndex, quantity: fill.quantity, entryReferencePrice: fill.referencePrice, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity });
       continue;
     }
 
@@ -42,7 +46,7 @@ export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedT
       const grossPnl = (fill.fillPrice - lot.entryPrice) * quantity;
       const netPnl = grossPnl - entryFee - exitFee;
       const invested = lot.entryPrice * quantity + entryFee;
-      trades.push({ entryIndex: lot.entryIndex, exitIndex: fill.executionIndex, side: "LONG", quantity, entryPrice: lot.entryPrice, exitPrice: fill.fillPrice, entryFee, exitFee, grossPnl, netPnl, returnPct: invested === 0 ? 0 : (netPnl / invested) * 100, holdingBars: fill.executionIndex - lot.entryIndex });
+      trades.push({ entryIndex: lot.entryIndex, exitIndex: fill.executionIndex, side: "LONG", quantity, entryReferencePrice: lot.entryReferencePrice, exitReferencePrice: fill.referencePrice, entryPrice: lot.entryPrice, exitPrice: fill.fillPrice, entryFee, exitFee, grossPnl, netPnl, returnPct: invested === 0 ? 0 : (netPnl / invested) * 100, holdingBars: fill.executionIndex - lot.entryIndex });
       lot.quantity -= quantity;
       remaining -= quantity;
       if (lot.quantity <= 1e-9) lots.shift();

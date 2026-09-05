@@ -1,7 +1,8 @@
 export * from "./stress-testing.js";
 export * from "./execution-stress.js";
 export * from "./execution-model.js";
-export * from "./signal-execution-adapter.js";
+export { executeSignals } from "./signal-execution-adapter.js";
+export type { PaperExecutionConfig, PaperExecutionResult } from "./signal-execution-adapter.js";
 export * from "./alpha-strategy.js";
 export * from "./strategy-execution-adapter.js";
 export * from "./portfolio-accounting.js";

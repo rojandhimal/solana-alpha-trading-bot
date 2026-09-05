@@ -1,8 +1,8 @@
 import type { StressMetrics, StressParameters } from "./stress-testing.js";
 
 export interface SimulatedTrade {
-  entryPrice: number;
-  exitPrice: number;
+  entryReferencePrice: number;
+  exitReferencePrice: number;
   quantity: number;
   side: "LONG" | "SHORT";
 }
@@ -36,8 +36,6 @@ function effectiveSlippage(baseSlippagePct: number, parameters: StressParameters
   if (parameters.executionDelayBars < 0) throw new Error("executionDelayBars must be non-negative");
   if (parameters.volatilityMultiplier <= 0) throw new Error("volatilityMultiplier must be positive");
 
-  // Deterministic paper-trading proxy: thinner liquidity, execution delay, and
-  // volatility each increase adverse execution cost without requiring future prices.
   const liquidityFactor = 1 / parameters.liquidityMultiplier;
   const delayFactor = 1 + parameters.executionDelayBars * 0.25;
   return baseSlippagePct * parameters.slippageMultiplier * liquidityFactor * delayFactor * parameters.volatilityMultiplier;
@@ -54,11 +52,11 @@ export function simulateExecutionStress(
   if (baseSlippagePct < 0 || baseFeePct < 0) throw new Error("base execution costs must be non-negative");
 
   const slippage = effectiveSlippage(baseSlippagePct, parameters);
-  const stressedTrades = trades.map((trade) => ({
-    ...trade,
-    entryPrice: adjustedEntry(trade.entryPrice, trade.side, slippage),
-    exitPrice: adjustedExit(trade.exitPrice, trade.side, slippage)
-  }));
+  const stressedTrades = trades.map((trade) => {
+    const entryPrice = adjustedEntry(trade.entryReferencePrice, trade.side, slippage);
+    const exitPrice = adjustedExit(trade.exitReferencePrice, trade.side, slippage);
+    return { ...trade, entryReferencePrice: trade.entryReferencePrice, exitReferencePrice: trade.exitReferencePrice, quantity: trade.quantity, side: trade.side, entryPrice, exitPrice };
+  });
 
   let grossProfit = 0;
   let grossLoss = 0;

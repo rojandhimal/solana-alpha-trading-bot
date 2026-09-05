@@ -8,7 +8,7 @@ export interface SimulatedTrade {
 }
 
 export interface ExecutionStressResult {
-  trades: SimulatedTrade[];
+  trades: Array<SimulatedTrade & { entryPrice: number; exitPrice: number }>;
   metrics: StressMetrics;
   equityCurve: number[];
 }
@@ -32,8 +32,10 @@ function maxDrawdownPct(equityCurve: readonly number[]): number {
 }
 
 function effectiveSlippage(baseSlippagePct: number, parameters: StressParameters): number {
+  if (parameters.slippageMultiplier < 0) throw new Error("slippageMultiplier must be non-negative");
+  if (parameters.feeMultiplier < 0) throw new Error("feeMultiplier must be non-negative");
   if (parameters.liquidityMultiplier <= 0) throw new Error("liquidityMultiplier must be positive");
-  if (parameters.executionDelayBars < 0) throw new Error("executionDelayBars must be non-negative");
+  if (!Number.isInteger(parameters.executionDelayBars) || parameters.executionDelayBars < 0) throw new Error("executionDelayBars must be a non-negative integer");
   if (parameters.volatilityMultiplier <= 0) throw new Error("volatilityMultiplier must be positive");
 
   const liquidityFactor = 1 / parameters.liquidityMultiplier;
@@ -55,7 +57,7 @@ export function simulateExecutionStress(
   const stressedTrades = trades.map((trade) => {
     const entryPrice = adjustedEntry(trade.entryReferencePrice, trade.side, slippage);
     const exitPrice = adjustedExit(trade.exitReferencePrice, trade.side, slippage);
-    return { ...trade, entryReferencePrice: trade.entryReferencePrice, exitReferencePrice: trade.exitReferencePrice, quantity: trade.quantity, side: trade.side, entryPrice, exitPrice };
+    return { ...trade, entryPrice, exitPrice };
   });
 
   let grossProfit = 0;

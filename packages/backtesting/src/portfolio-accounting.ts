@@ -28,9 +28,7 @@ export function accountFills(
   fills: readonly ExecutionFill[],
   initialCapital: number
 ): PortfolioAccountingResult {
-  if (!Number.isFinite(initialCapital) || initialCapital <= 0) {
-    throw new Error("initialCapital must be positive");
-  }
+  if (!Number.isFinite(initialCapital) || initialCapital <= 0) throw new Error("initialCapital must be positive");
 
   const fillsByIndex = new Map<number, ExecutionFill[]>();
   for (const fill of fills) {
@@ -64,11 +62,9 @@ export function accountFills(
         const previousCostBasis = costBasis;
         positionQuantity += fill.quantity;
         costBasis += totalCost;
-        averageEntryPrice = positionQuantity === 0 ? 0 : (previousCostBasis + notional) / positionQuantity;
+        averageEntryPrice = (previousCostBasis + notional) / positionQuantity;
       } else {
-        if (fill.quantity > positionQuantity + 1e-9) {
-          throw new Error(`SELL quantity exceeds position at execution index ${index}`);
-        }
+        if (fill.quantity > positionQuantity + 1e-9) throw new Error(`SELL quantity exceeds position at execution index ${index}`);
         const allocatedCost = positionQuantity === 0 ? 0 : costBasis * (fill.quantity / positionQuantity);
         cash += notional - fill.fee;
         realizedPnl += notional - fill.fee - allocatedCost;
@@ -85,34 +81,17 @@ export function accountFills(
       }
     }
 
-    const positionValue = positionQuantity * candles[index].close;
+    const candle = candles[index];
+    if (!candle) continue;
+    const positionValue = positionQuantity * candle.close;
     const equity = cash + positionValue;
     const unrealizedPnl = positionValue - costBasis;
     peakEquity = Math.max(peakEquity, equity);
     const drawdownPct = peakEquity === 0 ? 0 : ((peakEquity - equity) / peakEquity) * 100;
 
-    equityCurve.push({
-      index,
-      cash,
-      positionQuantity,
-      averageEntryPrice,
-      positionValue,
-      equity,
-      realizedPnl,
-      unrealizedPnl,
-      feesPaid,
-      drawdownPct
-    });
+    equityCurve.push({ index, cash, positionQuantity, averageEntryPrice, positionValue, equity, realizedPnl, unrealizedPnl, feesPaid, drawdownPct });
   }
 
-  const finalEquity = equityCurve.at(-1)?.equity ?? initialCapital;
-  return {
-    equityCurve,
-    initialCapital,
-    finalEquity,
-    netProfit: finalEquity - initialCapital,
-    realizedPnl,
-    feesPaid,
-    completedTrades
-  };
+  const finalEquity = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1]!.equity : initialCapital;
+  return { equityCurve, initialCapital, finalEquity, netProfit: finalEquity - initialCapital, realizedPnl, feesPaid, completedTrades };
 }

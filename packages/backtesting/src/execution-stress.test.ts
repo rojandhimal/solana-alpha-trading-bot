@@ -18,8 +18,18 @@ describe("execution stress", () => {
     expect(stressed.metrics.totalReturnPct).toBeLessThan(base.metrics.totalReturnPct);
   });
 
-  it("increases fee drag under fee stress", () => {
-    const trades = [{ entryReferencePrice: 100, exitReferencePrice: 102, quantity: 1, side: "LONG" as const }];
+  it("reduces short-trade pnl when liquidity and slippage worsen", () => {
+    const trades = [{ entryReferencePrice: 102, exitReferencePrice: 100, quantity: 1, side: "SHORT" as const }];
+    const base = simulateExecutionStress(trades, params());
+    const stressed = simulateExecutionStress(trades, params({ slippageMultiplier: 3, liquidityMultiplier: 0.5 }));
+    expect(stressed.metrics.totalReturnPct).toBeLessThan(base.metrics.totalReturnPct);
+  });
+
+  it("increases fee drag under fee stress for both directions", () => {
+    const trades = [
+      { entryReferencePrice: 100, exitReferencePrice: 102, quantity: 1, side: "LONG" as const },
+      { entryReferencePrice: 102, exitReferencePrice: 100, quantity: 1, side: "SHORT" as const }
+    ];
     const base = simulateExecutionStress(trades, params());
     const stressed = simulateExecutionStress(trades, params({ feeMultiplier: 2 }));
     expect(stressed.metrics.totalReturnPct).toBeLessThan(base.metrics.totalReturnPct);

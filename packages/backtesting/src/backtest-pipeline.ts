@@ -24,7 +24,12 @@ export interface BacktestPipelineResult {
 }
 
 function tradesForExecutionStress(trades: readonly CompletedTrade[]): SimulatedTrade[] {
-  return trades.map((trade) => ({ entryPrice: trade.entryPrice, exitPrice: trade.exitPrice, quantity: trade.quantity, side: trade.side }));
+  return trades.map((trade) => ({
+    entryReferencePrice: trade.entryReferencePrice,
+    exitReferencePrice: trade.exitReferencePrice,
+    quantity: trade.quantity,
+    side: trade.side
+  }));
 }
 
 export function runBacktestPipeline(input: BacktestPipelineInput): BacktestPipelineResult {

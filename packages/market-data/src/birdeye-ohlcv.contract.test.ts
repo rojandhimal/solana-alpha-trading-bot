@@ -20,7 +20,11 @@ describe("BirdeyeOhlcvSource", () => {
     ]);
 
     expect(fetchImpl).toHaveBeenCalledOnce();
-    const [request, options] = fetchImpl.mock.calls[0];
+    const calls = fetchImpl.mock.calls;
+    expect(calls).toHaveLength(1);
+    const request = calls[0]?.[0];
+    const options = calls[0]?.[1];
+    expect(request).toBeDefined();
     expect(String(request)).toContain("address=SOL");
     expect(String(request)).toContain("time_from=100");
     expect(String(request)).toContain("time_to=200");

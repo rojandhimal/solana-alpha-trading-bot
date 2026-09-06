@@ -18,19 +18,23 @@ export interface WalkForwardPipelineInput extends Omit<BacktestPipelineInput, "c
   walkForward: WalkForwardOptions;
 }
 
-function fillsForWindow(fills: readonly ExecutionFill[], window: WalkForwardWindow): ExecutionFill[] {
+function fillsForRange(
+  fills: readonly ExecutionFill[],
+  start: number,
+  end: number
+): ExecutionFill[] {
   return fills
     .filter(
       (fill) =>
-        fill.signalIndex >= window.trainStart &&
-        fill.executionIndex >= window.trainStart &&
-        fill.signalIndex < window.testEnd &&
-        fill.executionIndex < window.testEnd
+        fill.signalIndex >= start &&
+        fill.executionIndex >= start &&
+        fill.signalIndex < end &&
+        fill.executionIndex < end
     )
     .map((fill) => ({
       ...fill,
-      signalIndex: fill.signalIndex - window.trainStart,
-      executionIndex: fill.executionIndex - window.trainStart
+      signalIndex: fill.signalIndex - start,
+      executionIndex: fill.executionIndex - start
     }));
 }
 
@@ -77,16 +81,16 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test } = splitWalkForward(input.candles, window);
-    const windowInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForWindow(input.fills, window), candles: train }
+    const trainInput: BacktestPipelineInput = input.fills
+      ? { ...input, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train }
       : { ...input, candles: train };
     const testInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForWindow(input.fills, window), candles: test }
+      ? { ...input, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test }
       : { ...input, candles: test };
 
     return {
       ...window,
-      train: runBacktestPipeline(windowInput),
+      train: runBacktestPipeline(trainInput),
       test: runBacktestPipeline(testInput)
     };
   });

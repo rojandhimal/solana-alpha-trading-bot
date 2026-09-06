@@ -29,7 +29,7 @@ export class BirdeyeOhlcvSource implements HistoricalDataSource {
   constructor(options: BirdeyeOhlcvSourceOptions) {
     if (!options.apiKey.trim()) throw new Error("apiKey is required");
     this.apiKey = options.apiKey;
-    this.baseUrl = (options.baseUrl ?? "https://public-api.birdeye.so").replace(/\\/$/, "");
+    this.baseUrl = (options.baseUrl ?? "https://public-api.birdeye.so").replace(/\/$/, "");
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 

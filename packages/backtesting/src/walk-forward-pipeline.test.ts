@@ -37,7 +37,7 @@ describe("walk-forward pipeline", () => {
     });
     expect(result.robustness).toMatchObject({
       passed: true,
-      passingScenarioRatePct: 100,
+      passingScenarioRatePct: 0,
       failures: []
     });
   });

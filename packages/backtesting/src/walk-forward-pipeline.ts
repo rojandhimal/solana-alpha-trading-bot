@@ -22,15 +22,15 @@ function fillsForWindow(fills: readonly ExecutionFill[], window: WalkForwardWind
   return fills
     .filter(
       (fill) =>
-        fill.signalIndex >= window.start &&
-        fill.executionIndex >= window.start &&
-        fill.signalIndex < window.end &&
-        fill.executionIndex < window.end
+        fill.signalIndex >= window.trainStart &&
+        fill.executionIndex >= window.trainStart &&
+        fill.signalIndex < window.testEnd &&
+        fill.executionIndex < window.testEnd
     )
     .map((fill) => ({
       ...fill,
-      signalIndex: fill.signalIndex - window.start,
-      executionIndex: fill.executionIndex - window.start
+      signalIndex: fill.signalIndex - window.trainStart,
+      executionIndex: fill.executionIndex - window.trainStart
     }));
 }
 

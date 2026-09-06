@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit:ci": "npm audit --json",
+    "precommit": "npm run audit:ci || true"
   },
   "engines": { "node": ">=20" },
   "devDependencies": {

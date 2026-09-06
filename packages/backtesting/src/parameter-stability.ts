@@ -46,10 +46,13 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
 
   const candidates = input.candidates
     .map((candidate) => {
+      const strategyConfig = input.execution === undefined
+        ? { quantity: input.quantity, strategy: candidate.strategy }
+        : { quantity: input.quantity, strategy: candidate.strategy, execution: input.execution };
       const backtest = runBacktestPipeline({
         candles: input.candles,
         initialCapital: input.initialCapital,
-        strategy: { quantity: input.quantity, strategy: candidate.strategy, execution: input.execution },
+        strategy: strategyConfig,
         stressScenarios: input.stressScenarios,
         robustnessThresholds: input.robustnessThresholds
       });
@@ -61,9 +64,13 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
   const best = candidates[0];
   const scores = candidates.map((candidate) => candidate.riskAdjustedScore);
   const positiveScores = scores.filter((value) => value > 0);
-  const scoreSpreadPct = positiveScores.length < 2 || !best || best.riskAdjustedScore <= 0
+  const scoreSpreadPct = positiveScores.length < 2 || best === undefined || best.riskAdjustedScore <= 0
     ? 0
     : ((best.riskAdjustedScore - Math.min(...positiveScores)) / best.riskAdjustedScore) * 100;
+
+  if (best === undefined) {
+    return { candidates, scoreSpreadPct, stable: true };
+  }
 
   return {
     candidates,

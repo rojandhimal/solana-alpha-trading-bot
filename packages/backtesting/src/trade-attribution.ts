@@ -3,7 +3,7 @@ import type { ExecutionFill } from "./execution-model.js";
 export interface CompletedTrade {
   entryIndex: number;
   exitIndex: number;
-  side: "LONG";
+  side: "LONG" | "SHORT";
   quantity: number;
   entryReferencePrice: number;
   exitReferencePrice: number;
@@ -23,35 +23,69 @@ interface OpenLot {
   entryReferencePrice: number;
   entryPrice: number;
   entryFeePerUnit: number;
+  side: "LONG" | "SHORT";
 }
 
-export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
+export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
   const lots: OpenLot[] = [];
   const trades: CompletedTrade[] = [];
 
   for (const fill of fills) {
     if (fill.quantity <= 0) throw new Error("fill quantity must be positive");
-    if (fill.side === "BUY") {
-      lots.push({ entryIndex: fill.executionIndex, quantity: fill.quantity, entryReferencePrice: fill.referencePrice, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity });
-      continue;
-    }
-
+    const opensLong = fill.side === "BUY";
+    const closingSide: "LONG" | "SHORT" = opensLong ? "SHORT" : "LONG";
     let remaining = fill.quantity;
-    while (remaining > 1e-9) {
+
+    while (remaining > 1e-9 && lots[0]?.side === closingSide) {
       const lot = lots[0];
-      if (!lot) throw new Error(`SELL quantity exceeds open long at execution index ${fill.executionIndex}`);
       const quantity = Math.min(remaining, lot.quantity);
       const entryFee = lot.entryFeePerUnit * quantity;
       const exitFee = fill.fee * (quantity / fill.quantity);
-      const grossPnl = (fill.fillPrice - lot.entryPrice) * quantity;
+      const direction = lot.side === "LONG" ? 1 : -1;
+      const grossPnl = (fill.fillPrice - lot.entryPrice) * quantity * direction;
       const netPnl = grossPnl - entryFee - exitFee;
       const invested = lot.entryPrice * quantity + entryFee;
-      trades.push({ entryIndex: lot.entryIndex, exitIndex: fill.executionIndex, side: "LONG", quantity, entryReferencePrice: lot.entryReferencePrice, exitReferencePrice: fill.referencePrice, entryPrice: lot.entryPrice, exitPrice: fill.fillPrice, entryFee, exitFee, grossPnl, netPnl, returnPct: invested === 0 ? 0 : (netPnl / invested) * 100, holdingBars: fill.executionIndex - lot.entryIndex });
+
+      trades.push({
+        entryIndex: lot.entryIndex,
+        exitIndex: fill.executionIndex,
+        side: lot.side,
+        quantity,
+        entryReferencePrice: lot.entryReferencePrice,
+        exitReferencePrice: fill.referencePrice,
+        entryPrice: lot.entryPrice,
+        exitPrice: fill.fillPrice,
+        entryFee,
+        exitFee,
+        grossPnl,
+        netPnl,
+        returnPct: invested === 0 ? 0 : (netPnl / invested) * 100,
+        holdingBars: fill.executionIndex - lot.entryIndex
+      });
+
       lot.quantity -= quantity;
       remaining -= quantity;
       if (lot.quantity <= 1e-9) lots.shift();
     }
+
+    if (remaining <= 1e-9) continue;
+    if (lots.length > 0) {
+      throw new Error(`fill quantity exceeds open ${lots[0]?.side.toLowerCase()} at execution index ${fill.executionIndex}`);
+    }
+
+    lots.push({
+      entryIndex: fill.executionIndex,
+      quantity: remaining,
+      entryReferencePrice: fill.referencePrice,
+      entryPrice: fill.fillPrice,
+      entryFeePerUnit: fill.fee / fill.quantity,
+      side: opensLong ? "LONG" : "SHORT"
+    });
   }
 
   return trades;
+}
+
+export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
+  return attributeTrades(fills).filter((trade) => trade.side === "LONG");
 }

@@ -26,4 +26,26 @@ describe("walk-forward pipeline", () => {
       expectancy: 0
     });
   });
+
+  it("rebases explicit fills to each window and excludes fills that cross a window boundary", () => {
+    const result = runWalkForwardPipeline({
+      candles,
+      initialCapital: 10_000,
+      stressScenarios: [],
+      robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Infinity },
+      fills: [
+        { signalIndex: 10, executionIndex: 10, side: "BUY", quantity: 1, referencePrice: 100, fillPrice: 100, fee: 0 },
+        { signalIndex: 11, executionIndex: 11, side: "SELL", quantity: 1, referencePrice: 101, fillPrice: 101, fee: 0 },
+        { signalIndex: 14, executionIndex: 15, side: "SELL", quantity: 1, referencePrice: 104, fillPrice: 104, fee: 0 }
+      ],
+      walkForward: { trainingBars: 10, testingBars: 5 }
+    });
+
+    expect(result.windows[0]?.train.trades).toHaveLength(0);
+    expect(result.windows[0]?.test.trades).toHaveLength(1);
+    expect(result.windows[0]?.test.metrics.netProfit).toBe(1);
+    expect(result.windows[1]?.test.trades).toHaveLength(0);
+    expect(result.outOfSample.tradeCount).toBe(1);
+    expect(result.outOfSample.netProfit).toBe(1);
+  });
 });

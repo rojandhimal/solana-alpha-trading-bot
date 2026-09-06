@@ -2,7 +2,8 @@ import { runBacktestPipeline, type BacktestPipelineResult } from "./backtest-pip
 import type { AlphaStrategyConfig } from "./alpha-strategy.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 import type { Candle } from "./execution-model.js";
-import type { RobustnessThresholds, StressScenario } from "./robustness.js";
+import type { RobustnessThresholds } from "./robustness.js";
+import type { StressScenario } from "./stress-testing.js";
 
 export interface StrategyParameterCandidate {
   strategy: AlphaStrategyConfig;

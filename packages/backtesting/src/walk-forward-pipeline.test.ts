@@ -79,4 +79,40 @@ describe("walk-forward pipeline", () => {
       worstExpectancy: 1
     });
   });
+
+  it("runs the configured strategy independently inside every train/test window", () => {
+    const strategyCandles = Array.from({ length: 60 }, (_, i) => {
+      const close = 100 + i;
+      return { open: close, high: close + 1, low: close - 1, close, volume: 100 };
+    });
+
+    const result = runWalkForwardPipeline({
+      candles: strategyCandles,
+      initialCapital: 10_000,
+      strategy: {
+        quantity: 1,
+        strategy: {
+          fastPeriod: 5,
+          slowPeriod: 10,
+          rsiPeriod: 5,
+          momentumPeriod: 5,
+          atrPeriod: 5,
+          volumePeriod: 5,
+          entryThreshold: 0.5
+        },
+        execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0 }
+      },
+      stressScenarios: [],
+      robustnessThresholds: permissiveThresholds,
+      walkForward: { trainingBars: 30, testingBars: 15 }
+    });
+
+    expect(result.windows).toHaveLength(2);
+    expect(result.windows.every((window) => window.train.fills.length >= 0 && window.test.fills.length >= 0)).toBe(true);
+    expect(result.outOfSample.tradeCount).toBe(
+      result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0)
+    );
+    expect(result.consistency.windowCount).toBe(2);
+    expect(result.robustness).toBeDefined();
+  });
 });

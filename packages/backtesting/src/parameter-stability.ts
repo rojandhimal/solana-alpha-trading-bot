@@ -63,10 +63,10 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
 
   const best = candidates[0];
   const scores = candidates.map((candidate) => candidate.riskAdjustedScore);
-  const positiveScores = scores.filter((value) => value > 0);
-  const scoreSpreadPct = positiveScores.length < 2 || best === undefined || best.riskAdjustedScore <= 0
+  const minScore = Math.min(...scores);
+  const scoreSpreadPct = best === undefined || best.riskAdjustedScore === 0
     ? 0
-    : ((best.riskAdjustedScore - Math.min(...positiveScores)) / best.riskAdjustedScore) * 100;
+    : (Math.abs(best.riskAdjustedScore - minScore) / Math.abs(best.riskAdjustedScore)) * 100;
 
   if (best === undefined) {
     return { candidates, scoreSpreadPct, stable: true };
@@ -76,6 +76,6 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
     candidates,
     best,
     scoreSpreadPct,
-    stable: scoreSpreadPct <= spreadThreshold
+    stable: best.riskAdjustedScore > 0 && scoreSpreadPct <= spreadThreshold
   };
 }

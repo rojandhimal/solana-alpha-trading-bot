@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateRobustness } from "./robustness.js";
+import { evaluateRobustness, evaluateWalkForwardRobustness } from "./robustness.js";
 
 describe("robustness evaluation", () => {
   const thresholds = { maxDrawdownPct: 20, minProfitFactor: 1.2, minExpectancy: 0, minPassingScenarioRatePct: 80 };
@@ -40,5 +40,50 @@ describe("robustness evaluation", () => {
   it("rejects an empty stress run", () => {
     const report = evaluateRobustness([], thresholds);
     expect(report.failures).toContain("NO_STRESS_RESULTS");
+  });
+
+  it("evaluates walk-forward robustness using existing OOS metrics and consistency", () => {
+    const report = evaluateWalkForwardRobustness(
+      {
+        outOfSample: { maxDrawdownPct: 12, profitFactor: 1.5, expectancy: 4 } as never,
+        consistency: {
+          windowCount: 5,
+          profitableWindowPct: 80,
+          averageOosReturnPct: 3,
+          medianOosReturnPct: 2.5,
+          worstOosReturnPct: -1,
+          averageOosDrawdownPct: 6,
+          worstOosDrawdownPct: 12
+        }
+      },
+      thresholds
+    );
+
+    expect(report.passed).toBe(true);
+    expect(report.passingScenarioRatePct).toBe(80);
+    expect(report.worstDrawdownPct).toBe(12);
+    expect(report.worstProfitFactor).toBe(1.5);
+    expect(report.worstExpectancy).toBe(4);
+  });
+
+  it("fails walk-forward robustness when OOS consistency falls below the floor", () => {
+    const report = evaluateWalkForwardRobustness(
+      {
+        outOfSample: { maxDrawdownPct: 12, profitFactor: 1.5, expectancy: 4 } as never,
+        consistency: {
+          windowCount: 5,
+          profitableWindowPct: 60,
+          averageOosReturnPct: 1,
+          medianOosReturnPct: 0.5,
+          worstOosReturnPct: -3,
+          averageOosDrawdownPct: 8,
+          worstOosDrawdownPct: 12
+        }
+      },
+      thresholds
+    );
+
+    expect(report.passed).toBe(false);
+    expect(report.failures).toContain("TOO_FEW_OOS_WINDOWS_PROFITABLE");
   });
 });

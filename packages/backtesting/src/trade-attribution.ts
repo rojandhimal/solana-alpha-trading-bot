@@ -60,15 +60,21 @@ export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade
     lots.push({ entryIndex: fill.executionIndex, quantity: remaining, entryReferencePrice: fill.referencePrice, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity, side: opensLong ? "LONG" : "SHORT" });
   }
 
-  if (lots.length > 0) {
-    const last = fills.at(-1);
-    const side = lots[0]?.side;
-    if (last && side === "LONG" && last.side === "SELL") return trades;
-    if (last && side === "SHORT" && last.side === "BUY") return trades;
-  }
   return trades;
 }
 
 export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
+  let openLongQuantity = 0;
+  for (const fill of fills) {
+    if (fill.quantity <= 0) throw new Error("fill quantity must be positive");
+    if (fill.side === "BUY") {
+      openLongQuantity += fill.quantity;
+    } else {
+      if (fill.quantity > openLongQuantity + 1e-9) {
+        throw new Error(`fill quantity exceeds open long at execution index ${fill.executionIndex}`);
+      }
+      openLongQuantity -= fill.quantity;
+    }
+  }
   return attributeTrades(fills).filter((trade) => trade.side === "LONG");
 }

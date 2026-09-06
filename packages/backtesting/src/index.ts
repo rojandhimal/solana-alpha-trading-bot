@@ -12,3 +12,5 @@ export * from "./robustness.js";
 export * from "./backtest-pipeline.js";
 export * from "./market-data.js";
 export * from "./market-data-source-adapter.js";
+export * from "./walk-forward.js";
+export * from "./walk-forward-pipeline.js";

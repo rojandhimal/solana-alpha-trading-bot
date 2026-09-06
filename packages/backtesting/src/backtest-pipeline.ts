@@ -1,5 +1,5 @@
 import type { Candle, ExecutionFill } from "./execution-model.js";
-import { attributeLongTrades, type CompletedTrade } from "./trade-attribution.js";
+import { attributeTrades, type CompletedTrade } from "./trade-attribution.js";
 import { calculatePerformanceMetrics, type PerformanceMetrics } from "./performance-metrics.js";
 import { accountFills, type PortfolioAccountingResult } from "./portfolio-accounting.js";
 import { evaluateRobustness, type RobustnessReport, type RobustnessThresholds } from "./robustness.js";
@@ -37,7 +37,10 @@ function tradesForExecutionStress(trades: readonly CompletedTrade[]): SimulatedT
 }
 
 function strategyCandles(candles: readonly Candle[]): StrategyCandle[] {
-  return candles.map((candle) => ({ ...candle, volume: "volume" in candle && typeof candle.volume === "number" ? candle.volume : 0 }));
+  return candles.map((candle) => ({
+    ...candle,
+    volume: "volume" in candle && typeof candle.volume === "number" ? candle.volume : 0
+  }));
 }
 
 export function runBacktestPipeline(input: BacktestPipelineInput): BacktestPipelineResult {
@@ -48,7 +51,7 @@ export function runBacktestPipeline(input: BacktestPipelineInput): BacktestPipel
     : [...(input.fills ?? [])];
   const allowShort = Boolean(input.strategy);
   const baseline = accountFills(input.candles, fills, input.initialCapital, { allowShort });
-  const trades = attributeLongTrades(fills);
+  const trades = attributeTrades(fills);
   const metrics = calculatePerformanceMetrics(baseline, trades);
 
   const stressResults = runStressScenarios(input.stressScenarios, (parameters, scenario) => {
@@ -58,7 +61,7 @@ export function runBacktestPipeline(input: BacktestPipelineInput): BacktestPipel
 
     const stressedFills = input.runScenario(fills, parameters, scenario);
     const accounting = accountFills(input.candles, stressedFills, input.initialCapital, { allowShort });
-    const stressedTrades = attributeLongTrades(stressedFills);
+    const stressedTrades = attributeTrades(stressedFills);
     const stressedMetrics = calculatePerformanceMetrics(accounting, stressedTrades);
     return {
       totalReturnPct: stressedMetrics.totalReturnPct,

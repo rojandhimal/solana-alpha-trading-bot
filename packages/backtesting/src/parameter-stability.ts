@@ -4,6 +4,7 @@ import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 import type { Candle } from "./execution-model.js";
 import type { RobustnessThresholds } from "./robustness.js";
 import type { StressScenario } from "./stress-testing.js";
+import type { PerformanceMetrics } from "./performance-metrics.js";
 
 export interface StrategyParameterCandidate {
   strategy: AlphaStrategyConfig;
@@ -35,8 +36,17 @@ export interface ParameterStabilityInput {
   stabilitySpreadThresholdPct?: number;
 }
 
-function score(result: BacktestPipelineResult): number {
-  return result.metrics.totalReturnPct - result.metrics.maxDrawdownPct + result.metrics.expectancy;
+/**
+ * Scores candidates using percentage-point units only. Expectancy is normalized
+ * by starting capital so a dollar-denominated metric cannot dominate return
+ * and drawdown merely because the account is larger.
+ */
+export function calculateParameterStabilityScore(metrics: PerformanceMetrics, initialCapital: number): number {
+  if (!Number.isFinite(initialCapital) || initialCapital <= 0) {
+    throw new Error("initialCapital must be positive and finite");
+  }
+  const expectancyPct = (metrics.expectancy / initialCapital) * 100;
+  return metrics.totalReturnPct - metrics.maxDrawdownPct + expectancyPct;
 }
 
 export function analyzeParameterStability(input: ParameterStabilityInput): ParameterStabilityReport {
@@ -56,7 +66,12 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
         stressScenarios: input.stressScenarios,
         robustnessThresholds: input.robustnessThresholds
       });
-      return { candidate, backtest, riskAdjustedScore: score(backtest), rank: 0 };
+      return {
+        candidate,
+        backtest,
+        riskAdjustedScore: calculateParameterStabilityScore(backtest.metrics, input.initialCapital),
+        rank: 0
+      };
     })
     .sort((a, b) => b.riskAdjustedScore - a.riskAdjustedScore)
     .map((result, index) => ({ ...result, rank: index + 1 }));

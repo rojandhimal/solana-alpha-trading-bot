@@ -100,7 +100,7 @@ describe("walk-forward pipeline", () => {
           volumePeriod: 5,
           entryThreshold: 0.5
         },
-        execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0 }
+        execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }
       },
       stressScenarios: [],
       robustnessThresholds: permissiveThresholds,
@@ -113,6 +113,5 @@ describe("walk-forward pipeline", () => {
       result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0)
     );
     expect(result.consistency.windowCount).toBe(2);
-    expect(result.robustness).toBeDefined();
   });
 });

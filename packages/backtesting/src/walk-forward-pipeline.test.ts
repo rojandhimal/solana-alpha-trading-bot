@@ -15,7 +15,7 @@ describe("walk-forward pipeline", () => {
     });
 
     expect(result.windows).toHaveLength(2);
-    expect(result.windows[0]?.train.baseline.equity).toBe(10_000);
-    expect(result.windows[0]?.test.baseline.equity).toBe(10_000);
+    expect(result.windows[0]?.train.baseline.finalEquity).toBe(10_000);
+    expect(result.windows[0]?.test.baseline.finalEquity).toBe(10_000);
   });
 });

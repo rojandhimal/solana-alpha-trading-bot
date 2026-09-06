@@ -62,8 +62,8 @@ describe("walk-forward pipeline", () => {
       averageOosReturnPct: 0.005,
       medianOosReturnPct: 0.005,
       worstOosReturnPct: 0,
-      averageOosDrawdownPct: 0,
-      worstOosDrawdownPct: 0
+      averageOosDrawdownPct: 0.04745017731382049,
+      worstOosDrawdownPct: 0.09490035462764097
     });
   });
 });

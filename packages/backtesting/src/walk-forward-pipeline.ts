@@ -1,4 +1,4 @@
-import type { Candle } from "./execution-model.js";
+import type { Candle, ExecutionFill } from "./execution-model.js";
 import { runBacktestPipeline, type BacktestPipelineInput, type BacktestPipelineResult } from "./backtest-pipeline.js";
 import { createWalkForwardWindows, splitWalkForward, type WalkForwardOptions, type WalkForwardWindow } from "./walk-forward.js";
 import type { PerformanceMetrics } from "./performance-metrics.js";
@@ -16,6 +16,22 @@ export interface WalkForwardPipelineResult {
 export interface WalkForwardPipelineInput extends Omit<BacktestPipelineInput, "candles"> {
   candles: readonly Candle[];
   walkForward: WalkForwardOptions;
+}
+
+function fillsForWindow(fills: readonly ExecutionFill[], window: WalkForwardWindow): ExecutionFill[] {
+  return fills
+    .filter(
+      (fill) =>
+        fill.signalIndex >= window.start &&
+        fill.executionIndex >= window.start &&
+        fill.signalIndex < window.end &&
+        fill.executionIndex < window.end
+    )
+    .map((fill) => ({
+      ...fill,
+      signalIndex: fill.signalIndex - window.start,
+      executionIndex: fill.executionIndex - window.start
+    }));
 }
 
 function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
@@ -61,10 +77,17 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test } = splitWalkForward(input.candles, window);
+    const windowInput: BacktestPipelineInput = input.fills
+      ? { ...input, fills: fillsForWindow(input.fills, window), candles: train }
+      : { ...input, candles: train };
+    const testInput: BacktestPipelineInput = input.fills
+      ? { ...input, fills: fillsForWindow(input.fills, window), candles: test }
+      : { ...input, candles: test };
+
     return {
       ...window,
-      train: runBacktestPipeline({ ...input, candles: train }),
-      test: runBacktestPipeline({ ...input, candles: test })
+      train: runBacktestPipeline(windowInput),
+      test: runBacktestPipeline(testInput)
     };
   });
 

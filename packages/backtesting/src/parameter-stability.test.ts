@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeParameterStability } from "./parameter-stability.js";
+import { analyzeParameterStability, calculateParameterStabilityScore } from "./parameter-stability.js";
 
 const candles = Array.from({ length: 60 }, (_, i) => {
   const close = 100 + i * 0.5;
@@ -24,6 +24,23 @@ const thresholds = {
 };
 
 describe("parameter stability analysis", () => {
+  it("normalizes expectancy into percentage-point units before scoring", () => {
+    const metrics = {
+      totalReturnPct: 12,
+      netProfit: 1_200,
+      maxDrawdownPct: 4,
+      tradeCount: 10,
+      winRatePct: 60,
+      profitFactor: 1.5,
+      expectancy: 100,
+      averageWin: 200,
+      averageLoss: 50
+    };
+
+    expect(calculateParameterStabilityScore(metrics, 10_000)).toBeCloseTo(9, 10);
+    expect(() => calculateParameterStabilityScore(metrics, 0)).toThrow("initialCapital must be positive and finite");
+  });
+
   it("backtests every candidate, ranks them deterministically, and exposes the best candidate", () => {
     const result = analyzeParameterStability({
       candles,

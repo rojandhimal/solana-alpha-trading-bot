@@ -1,4 +1,4 @@
-import { config } from "@alpha/config";
+import { CHECK_LIVE_TRADING, config } from "@alpha/config";
 import { logger } from "@alpha/logger";
 import { DexScreenerClient, evaluateEligibility } from "@alpha/market-data";
 
@@ -28,6 +28,10 @@ async function scanToken(tokenAddress: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (config.TRADING_MODE === "LIVE") {
+    CHECK_LIVE_TRADING();
+  }
+
   logger.info({ mode: config.TRADING_MODE }, "Solana Alpha Scanner started");
 
   // Temporary smoke-test address. Automated discovery will replace this in Phase B.

@@ -25,6 +25,15 @@ describe("walk-forward pipeline", () => {
       profitFactor: 0,
       expectancy: 0
     });
+    expect(result.consistency).toEqual({
+      windowCount: 2,
+      profitableWindowPct: 0,
+      averageOosReturnPct: 0,
+      medianOosReturnPct: 0,
+      worstOosReturnPct: 0,
+      averageOosDrawdownPct: 0,
+      worstOosDrawdownPct: 0
+    });
   });
 
   it("rebases explicit fills to each window and excludes fills that cross a window boundary", () => {
@@ -47,5 +56,14 @@ describe("walk-forward pipeline", () => {
     expect(result.windows[1]?.test.trades).toHaveLength(0);
     expect(result.outOfSample.tradeCount).toBe(1);
     expect(result.outOfSample.netProfit).toBe(1);
+    expect(result.consistency).toMatchObject({
+      windowCount: 2,
+      profitableWindowPct: 50,
+      averageOosReturnPct: 0.005,
+      medianOosReturnPct: 0.005,
+      worstOosReturnPct: 0,
+      averageOosDrawdownPct: 0,
+      worstOosDrawdownPct: 0
+    });
   });
 });

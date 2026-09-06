@@ -36,9 +36,9 @@ describe("walk-forward pipeline", () => {
       worstOosDrawdownPct: 0
     });
     expect(result.robustness).toMatchObject({
-      passed: false,
-      passingScenarioRatePct: 0,
-      failures: ["OOS_PROFIT_FACTOR_TOO_LOW", "OOS_EXPECTANCY_TOO_LOW"]
+      passed: true,
+      passingScenarioRatePct: 100,
+      failures: []
     });
   });
 

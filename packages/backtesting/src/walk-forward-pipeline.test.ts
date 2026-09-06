@@ -4,7 +4,7 @@ import { runWalkForwardPipeline } from "./walk-forward-pipeline.js";
 const candles = Array.from({ length: 20 }, (_, i) => ({ open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i }));
 
 describe("walk-forward pipeline", () => {
-  it("runs a complete backtest for each train/test window", () => {
+  it("runs a complete backtest for each train/test window and aggregates out-of-sample metrics", () => {
     const result = runWalkForwardPipeline({
       candles,
       initialCapital: 10_000,
@@ -17,5 +17,13 @@ describe("walk-forward pipeline", () => {
     expect(result.windows).toHaveLength(2);
     expect(result.windows[0]?.train.baseline.finalEquity).toBe(10_000);
     expect(result.windows[0]?.test.baseline.finalEquity).toBe(10_000);
+    expect(result.outOfSample).toMatchObject({
+      totalReturnPct: 0,
+      netProfit: 0,
+      tradeCount: 0,
+      winRatePct: 0,
+      profitFactor: 0,
+      expectancy: 0
+    });
   });
 });

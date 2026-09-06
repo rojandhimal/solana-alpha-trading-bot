@@ -9,7 +9,7 @@ describe("walk-forward pipeline", () => {
       candles,
       initialCapital: 10_000,
       stressScenarios: [],
-      robustnessThresholds: { minScenarioPassRate: 0, maxDrawdownPct: 100, minProfitFactor: 0 },
+      robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Infinity },
       fills: [],
       walkForward: { trainingBars: 10, testingBars: 5 }
     });

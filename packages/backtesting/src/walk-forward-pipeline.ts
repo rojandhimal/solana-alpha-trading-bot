@@ -8,9 +8,20 @@ export interface WalkForwardPipelineWindow extends WalkForwardWindow {
   test: BacktestPipelineResult;
 }
 
+export interface WalkForwardConsistency {
+  windowCount: number;
+  profitableWindowPct: number;
+  averageOosReturnPct: number;
+  medianOosReturnPct: number;
+  worstOosReturnPct: number;
+  averageOosDrawdownPct: number;
+  worstOosDrawdownPct: number;
+}
+
 export interface WalkForwardPipelineResult {
   windows: WalkForwardPipelineWindow[];
   outOfSample: PerformanceMetrics;
+  consistency: WalkForwardConsistency;
 }
 
 export interface WalkForwardPipelineInput extends Omit<BacktestPipelineInput, "candles"> {
@@ -36,6 +47,13 @@ function fillsForRange(
       signalIndex: fill.signalIndex - start,
       executionIndex: fill.executionIndex - start
     }));
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
@@ -78,6 +96,22 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
   };
 }
 
+function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): WalkForwardConsistency {
+  const returns = windows.map((window) => window.test.metrics.totalReturnPct);
+  const drawdowns = windows.map((window) => window.test.metrics.maxDrawdownPct);
+  const profitable = returns.filter((value) => value > 0).length;
+
+  return {
+    windowCount: windows.length,
+    profitableWindowPct: windows.length === 0 ? 0 : (profitable / windows.length) * 100,
+    averageOosReturnPct: returns.length === 0 ? 0 : returns.reduce((sum, value) => sum + value, 0) / returns.length,
+    medianOosReturnPct: median(returns),
+    worstOosReturnPct: returns.length === 0 ? 0 : Math.min(...returns),
+    averageOosDrawdownPct: drawdowns.length === 0 ? 0 : drawdowns.reduce((sum, value) => sum + value, 0) / drawdowns.length,
+    worstOosDrawdownPct: drawdowns.length === 0 ? 0 : Math.max(...drawdowns)
+  };
+}
+
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test } = splitWalkForward(input.candles, window);
@@ -95,5 +129,9 @@ export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkFor
     };
   });
 
-  return { windows, outOfSample: aggregateOutOfSampleMetrics(windows) };
+  return {
+    windows,
+    outOfSample: aggregateOutOfSampleMetrics(windows),
+    consistency: calculateConsistency(windows)
+  };
 }

@@ -46,23 +46,7 @@ export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade
       const netPnl = grossPnl - entryFee - exitFee;
       const invested = lot.entryPrice * quantity + entryFee;
 
-      trades.push({
-        entryIndex: lot.entryIndex,
-        exitIndex: fill.executionIndex,
-        side: lot.side,
-        quantity,
-        entryReferencePrice: lot.entryReferencePrice,
-        exitReferencePrice: fill.referencePrice,
-        entryPrice: lot.entryPrice,
-        exitPrice: fill.fillPrice,
-        entryFee,
-        exitFee,
-        grossPnl,
-        netPnl,
-        returnPct: invested === 0 ? 0 : (netPnl / invested) * 100,
-        holdingBars: fill.executionIndex - lot.entryIndex
-      });
-
+      trades.push({ entryIndex: lot.entryIndex, exitIndex: fill.executionIndex, side: lot.side, quantity, entryReferencePrice: lot.entryReferencePrice, exitReferencePrice: fill.referencePrice, entryPrice: lot.entryPrice, exitPrice: fill.fillPrice, entryFee, exitFee, grossPnl, netPnl, returnPct: invested === 0 ? 0 : (netPnl / invested) * 100, holdingBars: fill.executionIndex - lot.entryIndex });
       lot.quantity -= quantity;
       remaining -= quantity;
       if (lot.quantity <= 1e-9) lots.shift();
@@ -73,16 +57,15 @@ export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade
       throw new Error(`fill quantity exceeds open ${lots[0]?.side.toLowerCase()} at execution index ${fill.executionIndex}`);
     }
 
-    lots.push({
-      entryIndex: fill.executionIndex,
-      quantity: remaining,
-      entryReferencePrice: fill.referencePrice,
-      entryPrice: fill.fillPrice,
-      entryFeePerUnit: fill.fee / fill.quantity,
-      side: opensLong ? "LONG" : "SHORT"
-    });
+    lots.push({ entryIndex: fill.executionIndex, quantity: remaining, entryReferencePrice: fill.referencePrice, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity, side: opensLong ? "LONG" : "SHORT" });
   }
 
+  if (lots.length > 0) {
+    const last = fills.at(-1);
+    const side = lots[0]?.side;
+    if (last && side === "LONG" && last.side === "SELL") return trades;
+    if (last && side === "SHORT" && last.side === "BUY") return trades;
+  }
   return trades;
 }
 

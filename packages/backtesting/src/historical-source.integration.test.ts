@@ -10,7 +10,12 @@ describe("historical source backtesting integration", () => {
       { timestamp: 3_000, open: 13, high: 15, low: 12, close: 14, volume: 140 }
     ]);
 
-    const bars = await source.load({ startTime: 1_000, endTime: 3_000 });
+    const bars = await source.load({
+      symbol: "SOL",
+      interval: "1m",
+      startTime: 1_000,
+      endTime: 3_000
+    });
     const candles = toBacktestCandles(bars);
 
     expect(candles).toEqual([

@@ -36,7 +36,8 @@ describe("walk-forward parameter selection", () => {
       execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 },
       stressScenarios: [],
       robustnessThresholds: thresholds,
-      walkForward: { trainingBars: 30, testingBars: 15 }
+      walkForward: { trainingBars: 30, testingBars: 15 },
+      requireStableSelection: false
     });
 
     expect(result.windows).toHaveLength(2);
@@ -46,6 +47,18 @@ describe("walk-forward parameter selection", () => {
     expect(result.outOfSample.tradeCount).toBe(
       result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0)
     );
+  });
+
+  it("fails closed by default when only one candidate is available", () => {
+    expect(() => runWalkForwardParameterSelection({
+      candles,
+      initialCapital: 10_000,
+      candidates: [{ label: "only", strategy: candidate }],
+      quantity: 1,
+      stressScenarios: [],
+      robustnessThresholds: thresholds,
+      walkForward: { trainingBars: 30, testingBars: 15 }
+    })).toThrow("unstable parameter selection");
   });
 
   it("fails fast when no candidates are provided", () => {

@@ -2,14 +2,7 @@ import { describe, expect, it } from "vitest";
 import { InMemoryHistoricalDataSource } from "../../market-data/src/historical-source.js";
 import { runHistoricalBacktest } from "./historical-backtest-runner.js";
 
-const stressScenarios = [{
-  name: "base",
-  feePct: 0,
-  slippagePct: 0,
-  latencyBars: 0,
-  liquidityMultiplier: 1,
-  volatilityMultiplier: 1
-}];
+const stressScenarios = ["BASE"] as const;
 
 const robustnessThresholds = {
   minTotalReturnPct: -100,

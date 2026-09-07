@@ -29,10 +29,13 @@ export interface WalkForwardParameterSelectionInput {
   robustnessThresholds: RobustnessThresholds;
   walkForward: WalkForwardOptions;
   stabilitySpreadThresholdPct?: number;
+  requireStableSelection?: boolean;
 }
 
 export function runWalkForwardParameterSelection(input: WalkForwardParameterSelectionInput): WalkForwardParameterSelectionResult {
   if (input.candidates.length === 0) throw new Error("at least one strategy candidate is required");
+
+  const requireStableSelection = input.requireStableSelection ?? true;
 
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test: testCandles } = splitWalkForward(input.candles, window);
@@ -54,6 +57,12 @@ export function runWalkForwardParameterSelection(input: WalkForwardParameterSele
     const selection = analyzeParameterStability(stabilityInputWithExecution);
 
     if (selection.best === undefined) throw new Error("parameter selection produced no best candidate");
+    if (requireStableSelection && !selection.stable) {
+      throw new Error(
+        `unstable parameter selection for walk-forward window ${window.trainStart}-${window.testEnd}: ` +
+        `score spread ${selection.scoreSpreadPct.toFixed(2)}% exceeds the allowed threshold or best score is non-positive`
+      );
+    }
 
     const strategyConfig = input.execution === undefined
       ? { quantity: input.quantity, strategy: selection.best.candidate.strategy }

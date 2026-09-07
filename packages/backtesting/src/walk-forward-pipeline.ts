@@ -59,20 +59,60 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[middle - 1]! + upper) / 2 : upper;
 }
 
-function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
-  const tradeCount = windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0);
-  const netProfit = windows.reduce((sum, window) => sum + window.test.metrics.netProfit, 0);
-  const initialCapital = windows[0]?.test.baseline.initialCapital ?? 0;
-  const totalReturnPct = initialCapital === 0 ? 0 : (netProfit / initialCapital) * 100;
-  const maxDrawdownPct = windows.reduce((max, window) => Math.max(max, window.test.metrics.maxDrawdownPct), 0);
+/**
+ * Aggregates OOS windows as a stitched equity curve. Each test window is
+ * independently backtested from the same starting capital, so its equity is
+ * rebased to the capital carried forward from the previous window. This avoids
+ * treating each window's profit as if it were earned independently from a
+ * fresh account when calculating total return and drawdown.
+ */
+export function aggregateWalkForwardOutOfSampleMetrics(
+  windows: readonly { test: BacktestPipelineResult }[]
+): PerformanceMetrics {
+  if (windows.length === 0) {
+    return {
+      totalReturnPct: 0,
+      netProfit: 0,
+      maxDrawdownPct: 0,
+      tradeCount: 0,
+      winRatePct: 0,
+      profitFactor: 0,
+      expectancy: 0,
+      averageWin: 0,
+      averageLoss: 0
+    };
+  }
 
+  const startingCapital = windows[0]?.test.baseline.initialCapital ?? 0;
+  let carriedCapital = startingCapital;
+  let peakEquity = startingCapital;
+  let maxDrawdownPct = 0;
+  let tradeCount = 0;
   let winningTrades = 0;
   let losingTrades = 0;
   let grossProfit = 0;
   let grossLoss = 0;
 
   for (const window of windows) {
-    const metrics = window.test.metrics;
+    const test = window.test;
+    const windowInitialCapital = test.baseline.initialCapital;
+    const equityCurve = test.baseline.equityCurve;
+
+    if (windowInitialCapital <= 0 || !Number.isFinite(windowInitialCapital)) {
+      throw new Error("walk-forward test initialCapital must be positive and finite");
+    }
+
+    for (const point of equityCurve) {
+      const stitchedEquity = carriedCapital * (point.equity / windowInitialCapital);
+      peakEquity = Math.max(peakEquity, stitchedEquity);
+      const drawdownPct = peakEquity === 0 ? 0 : ((peakEquity - stitchedEquity) / peakEquity) * 100;
+      maxDrawdownPct = Math.max(maxDrawdownPct, drawdownPct);
+    }
+
+    carriedCapital = carriedCapital * (test.baseline.finalEquity / windowInitialCapital);
+
+    const metrics = test.metrics;
+    tradeCount += metrics.tradeCount;
     const wins = (metrics.winRatePct / 100) * metrics.tradeCount;
     const losses = metrics.tradeCount - wins;
     winningTrades += wins;
@@ -81,6 +121,8 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
     grossLoss += metrics.averageLoss * losses;
   }
 
+  const netProfit = carriedCapital - startingCapital;
+  const totalReturnPct = startingCapital === 0 ? 0 : (netProfit / startingCapital) * 100;
   const winRatePct = tradeCount === 0 ? 0 : (winningTrades / tradeCount) * 100;
   const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Number.POSITIVE_INFINITY : 0) : grossProfit / grossLoss;
   const averageWin = winningTrades === 0 ? 0 : grossProfit / winningTrades;
@@ -132,7 +174,7 @@ export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkFor
     };
   });
 
-  const outOfSample = aggregateOutOfSampleMetrics(windows);
+  const outOfSample = aggregateWalkForwardOutOfSampleMetrics(windows);
   const consistency = calculateConsistency(windows);
   const robustness = evaluateWalkForwardRobustness({ outOfSample, consistency }, input.robustnessThresholds);
 

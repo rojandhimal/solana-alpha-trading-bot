@@ -114,4 +114,26 @@ describe("walk-forward pipeline", () => {
     );
     expect(result.consistency.windowCount).toBe(2);
   });
+
+  it("compounds OOS returns across windows instead of summing independent profits", () => {
+    const result = runWalkForwardPipeline({
+      candles,
+      initialCapital: 10_000,
+      stressScenarios: [],
+      robustnessThresholds: permissiveThresholds,
+      fills: [
+        { signalIndex: 10, executionIndex: 10, side: "BUY", quantity: 1, referencePrice: 100, fillPrice: 100, fee: 0 },
+        { signalIndex: 11, executionIndex: 11, side: "SELL", quantity: 1, referencePrice: 101, fillPrice: 101, fee: 0 },
+        { signalIndex: 15, executionIndex: 15, side: "BUY", quantity: 1, referencePrice: 100, fillPrice: 100, fee: 0 },
+        { signalIndex: 16, executionIndex: 16, side: "SELL", quantity: 1, referencePrice: 101, fillPrice: 101, fee: 0 }
+      ],
+      walkForward: { trainingBars: 10, testingBars: 5 }
+    });
+
+    expect(result.windows[0]?.test.metrics.netProfit).toBe(1);
+    expect(result.windows[1]?.test.metrics.netProfit).toBe(1);
+    expect(result.outOfSample.netProfit).toBeCloseTo(2.0001, 10);
+    expect(result.outOfSample.totalReturnPct).toBeCloseTo(0.020001, 10);
+    expect(result.outOfSample.tradeCount).toBe(2);
+  });
 });

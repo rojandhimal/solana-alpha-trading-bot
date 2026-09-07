@@ -15,3 +15,4 @@ export * from "./market-data-source-adapter.js";
 export * from "./walk-forward.js";
 export * from "./walk-forward-pipeline.js";
 export * from "./parameter-stability.js";
+export * from "./walk-forward-parameter-selection.js";

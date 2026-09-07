@@ -114,4 +114,49 @@ describe("walk-forward pipeline", () => {
     );
     expect(result.consistency.windowCount).toBe(2);
   });
+
+  it("passes only training candles to the optimizer and freezes the selected strategy for the test window", () => {
+    const strategyCandles = Array.from({ length: 60 }, (_, i) => {
+      const close = 1_000 + i;
+      return { open: close, high: close + 1, low: close - 1, close, volume: 100 };
+    });
+    const baseStrategy = {
+      quantity: 1,
+      strategy: {
+        fastPeriod: 5,
+        slowPeriod: 10,
+        rsiPeriod: 5,
+        momentumPeriod: 5,
+        atrPeriod: 5,
+        volumePeriod: 5,
+        entryThreshold: 0.5
+      },
+      execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }
+    };
+    const observed: number[][] = [];
+
+    const result = runWalkForwardPipeline({
+      candles: strategyCandles,
+      initialCapital: 10_000,
+      strategy: baseStrategy,
+      strategyOptimizer: (trainCandles, strategy) => {
+        observed.push(trainCandles.map((candle) => candle.close));
+        expect(trainCandles.every((candle) => candle.close < 1_030 || candle.close >= 1_030)).toBe(true);
+        return {
+          ...strategy,
+          strategy: { ...strategy.strategy, fastPeriod: 7, entryThreshold: 0.8 }
+        };
+      },
+      stressScenarios: [],
+      robustnessThresholds: permissiveThresholds,
+      walkForward: { trainingBars: 30, testingBars: 15 }
+    });
+
+    expect(observed).toHaveLength(2);
+    expect(observed[0]).toEqual(strategyCandles.slice(0, 30).map((candle) => candle.close));
+    expect(observed[1]).toEqual(strategyCandles.slice(15, 45).map((candle) => candle.close));
+    expect(result.windows.every((window) => window.selectedStrategy?.strategy.fastPeriod === 7)).toBe(true);
+    expect(result.windows.every((window) => window.selectedStrategy?.strategy.entryThreshold === 0.8)).toBe(true);
+    expect(result.windows.every((window) => window.test.fills.length >= 0)).toBe(true);
+  });
 });

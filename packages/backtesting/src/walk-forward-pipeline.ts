@@ -59,7 +59,9 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[middle - 1]! + upper) / 2 : upper;
 }
 
-function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
+export function aggregateWalkForwardOutOfSampleMetrics(
+  windows: readonly { test: BacktestPipelineResult }[]
+): PerformanceMetrics {
   const tradeCount = windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0);
   const netProfit = windows.reduce((sum, window) => sum + window.test.metrics.netProfit, 0);
   const initialCapital = windows[0]?.test.baseline.initialCapital ?? 0;
@@ -132,7 +134,7 @@ export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkFor
     };
   });
 
-  const outOfSample = aggregateOutOfSampleMetrics(windows);
+  const outOfSample = aggregateWalkForwardOutOfSampleMetrics(windows);
   const consistency = calculateConsistency(windows);
   const robustness = evaluateWalkForwardRobustness({ outOfSample, consistency }, input.robustnessThresholds);
 

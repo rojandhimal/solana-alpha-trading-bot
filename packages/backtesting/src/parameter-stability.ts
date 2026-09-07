@@ -84,13 +84,13 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
     : (Math.abs(best.riskAdjustedScore - minScore) / Math.abs(best.riskAdjustedScore)) * 100;
 
   if (best === undefined) {
-    return { candidates, scoreSpreadPct, stable: true };
+    return { candidates, scoreSpreadPct, stable: false };
   }
 
   return {
     candidates,
     best,
     scoreSpreadPct,
-    stable: best.riskAdjustedScore > 0 && scoreSpreadPct <= spreadThreshold
+    stable: candidates.length >= 2 && best.riskAdjustedScore > 0 && scoreSpreadPct <= spreadThreshold
   };
 }

@@ -35,17 +35,23 @@ export function runWalkForwardParameterSelection(input: WalkForwardParameterSele
   if (input.candidates.length === 0) throw new Error("at least one strategy candidate is required");
 
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
-    const { train, test } = splitWalkForward(input.candles, window);
-    const selection = analyzeParameterStability({
+    const { train, test: testCandles } = splitWalkForward(input.candles, window);
+    const stabilityInput = {
       candles: train,
       initialCapital: input.initialCapital,
       candidates: input.candidates,
       quantity: input.quantity,
-      execution: input.execution,
       stressScenarios: input.stressScenarios,
-      robustnessThresholds: input.robustnessThresholds,
-      stabilitySpreadThresholdPct: input.stabilitySpreadThresholdPct
-    });
+      robustnessThresholds: input.robustnessThresholds
+    };
+    const stabilityInputWithExecution = input.execution === undefined
+      ? (input.stabilitySpreadThresholdPct === undefined
+          ? stabilityInput
+          : { ...stabilityInput, stabilitySpreadThresholdPct: input.stabilitySpreadThresholdPct })
+      : (input.stabilitySpreadThresholdPct === undefined
+          ? { ...stabilityInput, execution: input.execution }
+          : { ...stabilityInput, execution: input.execution, stabilitySpreadThresholdPct: input.stabilitySpreadThresholdPct });
+    const selection = analyzeParameterStability(stabilityInputWithExecution);
 
     if (selection.best === undefined) throw new Error("parameter selection produced no best candidate");
 
@@ -53,7 +59,7 @@ export function runWalkForwardParameterSelection(input: WalkForwardParameterSele
       ? { quantity: input.quantity, strategy: selection.best.candidate.strategy }
       : { quantity: input.quantity, strategy: selection.best.candidate.strategy, execution: input.execution };
     const testResult = runBacktestPipeline({
-      candles: test,
+      candles: testCandles,
       initialCapital: input.initialCapital,
       strategy: strategyConfig,
       stressScenarios: input.stressScenarios,

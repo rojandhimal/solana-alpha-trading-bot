@@ -7,6 +7,13 @@ export interface StrategyExecutionConfig {
   execution?: ExecutionModelParameters;
 }
 
+export type StrategyPosition = "LONG" | "SHORT" | "FLAT";
+
+export interface StatefulStrategyFills {
+  fills: ExecutionFill[];
+  finalPosition: StrategyPosition;
+}
+
 const DEFAULT_EXECUTION: ExecutionModelParameters = {
   executionDelayBars: 0,
   slippagePct: 0.1,
@@ -20,16 +27,17 @@ const DEFAULT_EXECUTION: ExecutionModelParameters = {
  * opposite direction closes the current position and opens the new one.
  * FLAT closes an open position. The final open position is not force-closed.
  */
-export function generateStrategyFills(
+export function generateStrategyFillsWithState(
   candles: readonly StrategyCandle[],
-  config: StrategyExecutionConfig
-): ExecutionFill[] {
+  config: StrategyExecutionConfig,
+  initialPosition: StrategyPosition = "FLAT"
+): StatefulStrategyFills {
   if (!Number.isFinite(config.quantity) || config.quantity <= 0) throw new Error("quantity must be positive");
 
   const execution = { ...DEFAULT_EXECUTION, ...config.execution };
   const executionCandles: Candle[] = candles.map(({ open, high, low, close }) => ({ open, high, low, close }));
   const fills: ExecutionFill[] = [];
-  let position: "LONG" | "SHORT" | "FLAT" = "FLAT";
+  let position: StrategyPosition = initialPosition;
 
   for (let index = 0; index < candles.length; index += 1) {
     const signal = generateSignal(candles.slice(0, index + 1), config.strategy);
@@ -55,5 +63,12 @@ export function generateStrategyFills(
     }
   }
 
-  return fills;
+  return { fills, finalPosition: position };
+}
+
+export function generateStrategyFills(
+  candles: readonly StrategyCandle[],
+  config: StrategyExecutionConfig
+): ExecutionFill[] {
+  return generateStrategyFillsWithState(candles, config).fills;
 }

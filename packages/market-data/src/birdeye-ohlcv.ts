@@ -113,7 +113,8 @@ export class BirdeyeOhlcvSource implements HistoricalDataSource {
         throw new Error(`Birdeye OHLCV returned HTTP ${response.status}`);
       }
 
-      const retryAfter = Number(response.headers.get("retry-after"));
+      const retryAfterHeader = response.headers.get("retry-after");
+      const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
       const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0
         ? retryAfter * 1000
         : this.retryBaseDelayMs * 2 ** attempt;

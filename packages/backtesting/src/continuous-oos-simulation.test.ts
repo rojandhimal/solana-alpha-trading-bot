@@ -36,6 +36,8 @@ function window(testStart: number, testEnd: number): WalkForwardParameterSelecti
 }
 
 describe("continuous OOS simulation", () => {
+  const execution = { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 };
+
   it("rejects empty windows", () => {
     expect(() => runContinuousOosSimulation({ candles: candles(30, 1), windows: [], initialCapital: 10_000, quantity: 1 })).toThrow("at least one walk-forward window is required");
   });
@@ -54,12 +56,36 @@ describe("continuous OOS simulation", () => {
       windows: [window(30, 45), window(15, 30)],
       initialCapital: 10_000,
       quantity: 1,
-      execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }
+      execution
     });
 
     expect(result.accounting.initialCapital).toBe(10_000);
     expect(result.accounting.equityCurve).toHaveLength(30);
     expect(result.finalPosition).toBe("LONG");
     expect(result.fills.every((fill) => fill.signalIndex >= 0 && fill.executionIndex >= 0)).toBe(true);
+  });
+
+  it("offsets fills from later OOS windows into the combined OOS timeline", () => {
+    const first = runContinuousOosSimulation({
+      candles: candles(60, 1),
+      windows: [window(15, 30)],
+      initialCapital: 10_000,
+      quantity: 1,
+      execution
+    });
+    const combined = runContinuousOosSimulation({
+      candles: candles(60, 1),
+      windows: [window(30, 45), window(15, 30)],
+      initialCapital: 10_000,
+      quantity: 1,
+      execution
+    });
+
+    expect(first.fills.length).toBeGreaterThan(0);
+    expect(combined.fills.length).toBeGreaterThan(first.fills.length);
+
+    const secondWindowFills = combined.fills.filter((fill) => fill.signalIndex >= 15);
+    expect(secondWindowFills.length).toBeGreaterThan(0);
+    expect(secondWindowFills.every((fill) => fill.signalIndex >= 15 && fill.executionIndex >= 15)).toBe(true);
   });
 });

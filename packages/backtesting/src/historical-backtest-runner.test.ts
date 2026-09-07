@@ -5,10 +5,9 @@ import { runHistoricalBacktest } from "./historical-backtest-runner.js";
 const stressScenarios = ["BASE"] as const;
 
 const robustnessThresholds = {
-  minTotalReturnPct: -100,
   maxDrawdownPct: 100,
   minProfitFactor: 0,
-  minExpectancy: -Infinity,
+  minExpectancy: -1_000_000,
   minPassingScenarioRatePct: 0
 };
 

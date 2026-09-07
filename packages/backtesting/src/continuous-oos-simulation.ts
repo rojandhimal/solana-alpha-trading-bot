@@ -6,30 +6,34 @@ import { generateStrategyFillsWithState, type StrategyExecutionConfig, type Stra
 import type { WalkForwardParameterSelectionWindow } from "./walk-forward-parameter-selection.js";
 import type { StrategyCandle } from "./alpha-strategy.js";
 
+type StrategyFills = ReturnType<typeof generateStrategyFillsWithState>["fills"];
+
+type ExecutionModelParameters = NonNullable<StrategyExecutionConfig["execution"]>;
+
 export interface ContinuousOosSimulationInput {
   candles: readonly Candle[];
   windows: readonly WalkForwardParameterSelectionWindow[];
   initialCapital: number;
   quantity: number;
-  execution?: StrategyExecutionConfig["execution"];
+  execution?: ExecutionModelParameters;
 }
 
 export interface ContinuousOosSimulationResult {
   accounting: PortfolioAccountingResult;
-  fills: ReturnType<typeof generateStrategyFillsWithState>["fills"];
+  fills: StrategyFills;
   trades: CompletedTrade[];
   metrics: PerformanceMetrics;
   finalPosition: StrategyPosition;
 }
 
 function strategyCandles(candles: readonly Candle[]): StrategyCandle[] {
-  return candles.map((candle) => ({ ...candle, volume: "volume" in candle && typeof candle.volume === "number" ? candle.volume : 0 }));
+  return candles.map((candle) => ({
+    ...candle,
+    volume: "volume" in candle && typeof candle.volume === "number" ? candle.volume : 0
+  }));
 }
 
-function offsetFills(
-  fills: readonly ReturnType<typeof generateStrategyFillsWithState>["fills"],
-  offset: number
-) {
+function offsetFills(fills: StrategyFills, offset: number): StrategyFills {
   return fills.map((fill) => ({
     ...fill,
     signalIndex: fill.signalIndex + offset,
@@ -51,7 +55,7 @@ export function runContinuousOosSimulation(input: ContinuousOosSimulationInput):
   if (input.windows.length === 0) throw new Error("at least one walk-forward window is required");
 
   const orderedWindows = [...input.windows].sort((a, b) => a.testStart - b.testStart);
-  const fills: ReturnType<typeof generateStrategyFillsWithState>["fills"] = [];
+  const fills: StrategyFills = [];
   let position: StrategyPosition = "FLAT";
   let offset = 0;
   let previousEnd = -1;

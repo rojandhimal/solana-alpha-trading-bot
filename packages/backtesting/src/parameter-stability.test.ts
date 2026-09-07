@@ -63,6 +63,20 @@ describe("parameter stability analysis", () => {
     expect(typeof result.stable).toBe("boolean");
   });
 
+  it("does not claim stability when only one candidate is available", () => {
+    const result = analyzeParameterStability({
+      candles,
+      initialCapital: 10_000,
+      quantity: 1,
+      candidates: [{ label: "only", strategy: base }],
+      stressScenarios: [],
+      robustnessThresholds: thresholds
+    });
+
+    expect(result.best?.rank).toBe(1);
+    expect(result.stable).toBe(false);
+  });
+
   it("rejects an empty candidate set and invalid stability thresholds", () => {
     expect(() => analyzeParameterStability({
       candles,

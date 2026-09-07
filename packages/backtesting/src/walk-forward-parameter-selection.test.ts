@@ -49,6 +49,37 @@ describe("walk-forward parameter selection", () => {
     );
   });
 
+  it("does not let changes in the first OOS window affect parameter selection", () => {
+    const futureChangedCandles = candles.map((candle, index) =>
+      index >= 30 && index < 45
+        ? { ...candle, open: candle.open * 3, high: candle.high * 3, low: candle.low * 3, close: candle.close * 3 }
+        : candle
+    );
+
+    const input = {
+      initialCapital: 10_000,
+      candidates: [
+        { label: "baseline", strategy: candidate },
+        { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }
+      ],
+      quantity: 1,
+      stressScenarios: [],
+      robustnessThresholds: thresholds,
+      walkForward: { trainingBars: 30, testingBars: 15 },
+      requireStableSelection: false
+    } as const;
+
+    const original = runWalkForwardParameterSelection({ ...input, candles });
+    const changed = runWalkForwardParameterSelection({ ...input, candles: futureChangedCandles });
+
+    expect(changed.windows[0]?.selection.candidates.map((item) => item.candidate.label))
+      .toEqual(original.windows[0]?.selection.candidates.map((item) => item.candidate.label));
+    expect(changed.windows[0]?.selection.candidates.map((item) => item.riskAdjustedScore))
+      .toEqual(original.windows[0]?.selection.candidates.map((item) => item.riskAdjustedScore));
+    expect(changed.windows[0]?.selection.best?.candidate.label)
+      .toBe(original.windows[0]?.selection.best?.candidate.label);
+  });
+
   it("fails closed by default when only one candidate is available", () => {
     expect(() => runWalkForwardParameterSelection({
       candles,

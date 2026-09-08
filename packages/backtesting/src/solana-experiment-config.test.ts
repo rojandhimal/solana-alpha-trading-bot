@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SOLANA_EXPERIMENT_CONFIG } from "./solana-experiment-config.js";
+import { SOLANA_EXPERIMENT_CONFIG, SOL_BASELINE_STRATEGY } from "./solana-experiment-config.js";
 
 describe("SOLANA_EXPERIMENT_CONFIG", () => {
   it("uses a deterministic SOL identity and historical query", () => {
@@ -10,12 +10,21 @@ describe("SOLANA_EXPERIMENT_CONFIG", () => {
     expect(SOLANA_EXPERIMENT_CONFIG.query.endTime).toBe(1767225599000);
   });
 
-  it("keeps research capital, walk-forward and stress settings deterministic", () => {
+  it("keeps research capital, walk-forward, strategy and stress settings deterministic", () => {
     expect(SOLANA_EXPERIMENT_CONFIG.initialCapital).toBe(10_000);
     expect(SOLANA_EXPERIMENT_CONFIG.walkForward).toEqual({
       trainingBars: 90 * 24,
       testingBars: 30 * 24,
       stepBars: 30 * 24
+    });
+    expect(SOL_BASELINE_STRATEGY).toEqual({
+      fastPeriod: 10,
+      slowPeriod: 30,
+      rsiPeriod: 14,
+      momentumPeriod: 10,
+      atrPeriod: 14,
+      volumePeriod: 20,
+      entryThreshold: 0.5
     });
     expect(SOLANA_EXPERIMENT_CONFIG.stressScenarios).toEqual([
       "BASE",

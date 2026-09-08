@@ -1,10 +1,10 @@
-import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "../../market-data/src/historical-source.js";
+import type { HistoricalDataQuery, HistoricalDataSource } from "../../market-data/src/historical-source.js";
 import { auditHistoricalData, assertHistoricalDataQuality, type HistoricalDataQualityReport } from "../../market-data/src/historical-data-quality.js";
 import { optimizeAlphaStrategy, type AlphaStrategyOptimizationOptions } from "./alpha-strategy-optimizer.js";
+import type { Candle } from "./execution-model.js";
 import type { RobustnessThresholds } from "./robustness.js";
 import type { StressScenario } from "./stress-testing.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
-import { runHistoricalBacktest } from "./historical-backtest-runner.js";
 import { runWalkForwardPipeline, type WalkForwardPipelineResult } from "./walk-forward-pipeline.js";
 import type { WalkForwardOptions } from "./walk-forward.js";
 import { toBacktestCandles } from "./market-data.js";
@@ -29,9 +29,9 @@ export interface HistoricalExperimentResult {
 }
 
 function runWfo(
-  candles: ReturnType<typeof toBacktestCandles>,
+  candles: readonly Candle[],
   config: HistoricalExperimentConfig,
-  strategyOptimizer?: (trainCandles: readonly ReturnType<typeof toBacktestCandles>[number][], base: StrategyExecutionConfig) => StrategyExecutionConfig
+  strategyOptimizer?: (trainCandles: readonly Candle[], base: StrategyExecutionConfig) => StrategyExecutionConfig
 ): WalkForwardPipelineResult {
   return runWalkForwardPipeline({
     candles,

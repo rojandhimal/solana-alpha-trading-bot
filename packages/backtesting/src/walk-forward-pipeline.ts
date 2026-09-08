@@ -94,16 +94,19 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
 }
 
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
-  const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
-    const { train, test } = splitWalkForward(input.candles, window);
-    const selectedStrategy = input.strategy && input.strategyOptimizer ? input.strategyOptimizer(train, input.strategy) : input.strategy;
+  const { candles: inputCandles, walkForward, strategyOptimizer, ...pipelineConfig } = input;
+  const windows = createWalkForwardWindows(inputCandles.length, walkForward).map((window) => {
+    const { train, test } = splitWalkForward(inputCandles, window);
+    const selectedStrategy = input.strategy && strategyOptimizer ? strategyOptimizer(train, input.strategy) : input.strategy;
+    const strategyConfig = selectedStrategy === undefined ? {} : { strategy: selectedStrategy };
     const trainInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train, strategy: selectedStrategy }
-      : { ...input, candles: train, strategy: selectedStrategy };
+      ? { ...pipelineConfig, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train, ...strategyConfig }
+      : { ...pipelineConfig, candles: train, ...strategyConfig };
     const testInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test, strategy: selectedStrategy }
-      : { ...input, candles: test, strategy: selectedStrategy };
-    return { ...window, selectedStrategy, train: runBacktestPipeline(trainInput), test: runBacktestPipeline(testInput) };
+      ? { ...pipelineConfig, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test, ...strategyConfig }
+      : { ...pipelineConfig, candles: test, ...strategyConfig };
+    const result = { ...window, train: runBacktestPipeline(trainInput), test: runBacktestPipeline(testInput) };
+    return selectedStrategy === undefined ? result : { ...result, selectedStrategy };
   });
   const outOfSample = aggregateOutOfSampleMetrics(windows);
   const consistency = calculateConsistency(windows);

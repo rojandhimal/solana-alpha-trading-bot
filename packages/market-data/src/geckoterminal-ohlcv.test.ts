@@ -46,11 +46,11 @@ describe("GeckoTerminalOhlcvSource", () => {
       const url = new URL(String(input));
       calls.push(url);
       const before = url.searchParams.get("before_timestamp");
-      if (before === null) return response([[1_700_000_720, 102, 103, 101, 102, 10], [1_700_000_360, 101, 102, 100, 101, 10]]);
+      if (before === "1700000721") return response([[1_700_000_720, 102, 103, 101, 102, 10], [1_700_000_360, 101, 102, 100, 101, 10]]);
       return response([[1_700_000_000, 100, 101, 99, 100, 10]]);
     });
 
-    const source = new GeckoTerminalOhlcvSource({ fetchImpl });
+    const source = new GeckoTerminalOhlcvSource({ fetchImpl, pageLimit: 2 });
     const bars = await source.load({
       symbol: "SOL",
       interval: "1H",
@@ -58,8 +58,9 @@ describe("GeckoTerminalOhlcvSource", () => {
       endTime: 1_700_000_720_000
     });
 
-    expect(calls.length).toBeGreaterThanOrEqual(2);
-    expect(calls[0]?.searchParams.get("before_timestamp")).toBe("1700000720");
+    expect(calls.length).toBe(2);
+    expect(calls[0]?.searchParams.get("before_timestamp")).toBe("1700000721");
+    expect(calls[1]?.searchParams.get("before_timestamp")).toBe("1700000360");
     expect(bars.map((bar) => bar.timestamp)).toEqual([1_700_000_000_000, 1_700_000_360_000, 1_700_000_720_000]);
   });
 

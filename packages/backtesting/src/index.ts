@@ -4,6 +4,7 @@ export * from "./execution-model.js";
 export { executeSignals } from "./signal-execution-adapter.js";
 export type { PaperExecutionConfig, PaperExecutionResult } from "./signal-execution-adapter.js";
 export * from "./alpha-strategy.js";
+export * from "./alpha-strategy-optimizer.js";
 export * from "./strategy-execution-adapter.js";
 export * from "./portfolio-accounting.js";
 export * from "./trade-attribution.js";

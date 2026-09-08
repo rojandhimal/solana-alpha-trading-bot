@@ -80,6 +80,29 @@ describe("walk-forward pipeline", () => {
     });
   });
 
+  it("compounds sequential out-of-sample windows instead of summing independent returns", () => {
+    const result = runWalkForwardPipeline({
+      candles,
+      initialCapital: 10_000,
+      robustnessThresholds: permissiveThresholds,
+      fills: [
+        { signalIndex: 10, executionIndex: 10, side: "BUY", quantity: 1, referencePrice: 100, fillPrice: 100, fee: 0 },
+        { signalIndex: 14, executionIndex: 14, side: "SELL", quantity: 1, referencePrice: 101, fillPrice: 101, fee: 0 },
+        { signalIndex: 15, executionIndex: 15, side: "BUY", quantity: 1, referencePrice: 200, fillPrice: 200, fee: 0 },
+        { signalIndex: 19, executionIndex: 19, side: "SELL", quantity: 1, referencePrice: 202, fillPrice: 202, fee: 0 }
+      ],
+      stressScenarios: [],
+      walkForward: { trainingBars: 10, testingBars: 5 }
+    });
+
+    const firstReturn = result.windows[0]!.test.metrics.totalReturnPct / 100;
+    const secondReturn = result.windows[1]!.test.metrics.totalReturnPct / 100;
+    const expectedCompoundedReturnPct = ((1 + firstReturn) * (1 + secondReturn) - 1) * 100;
+
+    expect(result.outOfSample.totalReturnPct).toBeCloseTo(expectedCompoundedReturnPct, 12);
+    expect(result.outOfSample.totalReturnPct).not.toBeCloseTo(firstReturn * 100 + secondReturn * 100, 12);
+  });
+
   it("runs the configured strategy independently inside every train/test window", () => {
     const strategyCandles = Array.from({ length: 60 }, (_, i) => {
       const close = 100 + i;

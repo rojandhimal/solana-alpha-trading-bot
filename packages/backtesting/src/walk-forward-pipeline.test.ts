@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runWalkForwardPipeline } from "./walk-forward-pipeline.js";
+import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 
 const candles = Array.from({ length: 20 }, (_, i) => ({ open: 100 + i, high: 101 + i, low: 99 + i, close: 100.5 + i }));
 const permissiveThresholds = { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -1_000 };
@@ -35,11 +36,7 @@ describe("walk-forward pipeline", () => {
       averageOosDrawdownPct: 0,
       worstOosDrawdownPct: 0
     });
-    expect(result.robustness).toMatchObject({
-      passed: true,
-      passingScenarioRatePct: 0,
-      failures: []
-    });
+    expect(result.robustness).toMatchObject({ passed: true, passingScenarioRatePct: 0, failures: [] });
   });
 
   it("rebases explicit fills to each window and excludes fills that cross a window boundary", () => {
@@ -62,22 +59,8 @@ describe("walk-forward pipeline", () => {
     expect(result.windows[1]?.test.trades).toHaveLength(0);
     expect(result.outOfSample.tradeCount).toBe(1);
     expect(result.outOfSample.netProfit).toBe(1);
-    expect(result.consistency).toMatchObject({
-      windowCount: 2,
-      profitableWindowPct: 50,
-      averageOosReturnPct: 0.005,
-      medianOosReturnPct: 0.005,
-      worstOosReturnPct: 0,
-      averageOosDrawdownPct: 0.04745017731382049,
-      worstOosDrawdownPct: 0.09490035462764097
-    });
-    expect(result.robustness).toMatchObject({
-      passed: true,
-      passingScenarioRatePct: 50,
-      worstDrawdownPct: 0.09490035462764097,
-      worstProfitFactor: Number.POSITIVE_INFINITY,
-      worstExpectancy: 1
-    });
+    expect(result.consistency).toMatchObject({ windowCount: 2, profitableWindowPct: 50, averageOosReturnPct: 0.005, medianOosReturnPct: 0.005, worstOosReturnPct: 0, averageOosDrawdownPct: 0.04745017731382049, worstOosDrawdownPct: 0.09490035462764097 });
+    expect(result.robustness).toMatchObject({ passed: true, passingScenarioRatePct: 50, worstDrawdownPct: 0.09490035462764097, worstProfitFactor: Number.POSITIVE_INFINITY, worstExpectancy: 1 });
   });
 
   it("compounds sequential out-of-sample windows instead of summing independent returns", () => {
@@ -108,21 +91,12 @@ describe("walk-forward pipeline", () => {
       const close = 100 + i;
       return { open: close, high: close + 1, low: close - 1, close, volume: 100 };
     });
-
     const result = runWalkForwardPipeline({
       candles: strategyCandles,
       initialCapital: 10_000,
       strategy: {
         quantity: 1,
-        strategy: {
-          fastPeriod: 5,
-          slowPeriod: 10,
-          rsiPeriod: 5,
-          momentumPeriod: 5,
-          atrPeriod: 5,
-          volumePeriod: 5,
-          entryThreshold: 0.5
-        },
+        strategy: { fastPeriod: 5, slowPeriod: 10, rsiPeriod: 5, momentumPeriod: 5, atrPeriod: 5, volumePeriod: 5, entryThreshold: 0.5 },
         execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }
       },
       stressScenarios: [],
@@ -132,9 +106,7 @@ describe("walk-forward pipeline", () => {
 
     expect(result.windows).toHaveLength(2);
     expect(result.windows.every((window) => window.train.fills.length >= 0 && window.test.fills.length >= 0)).toBe(true);
-    expect(result.outOfSample.tradeCount).toBe(
-      result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0)
-    );
+    expect(result.outOfSample.tradeCount).toBe(result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0));
     expect(result.consistency.windowCount).toBe(2);
   });
 
@@ -143,17 +115,9 @@ describe("walk-forward pipeline", () => {
       const close = 1_000 + i;
       return { open: close, high: close + 1, low: close - 1, close, volume: 100 };
     });
-    const baseStrategy = {
+    const baseStrategy: StrategyExecutionConfig = {
       quantity: 1,
-      strategy: {
-        fastPeriod: 5,
-        slowPeriod: 10,
-        rsiPeriod: 5,
-        momentumPeriod: 5,
-        atrPeriod: 5,
-        volumePeriod: 5,
-        entryThreshold: 0.5
-      },
+      strategy: { fastPeriod: 5, slowPeriod: 10, rsiPeriod: 5, momentumPeriod: 5, atrPeriod: 5, volumePeriod: 5, entryThreshold: 0.5 },
       execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }
     };
     const observed: number[][] = [];
@@ -162,13 +126,11 @@ describe("walk-forward pipeline", () => {
       candles: strategyCandles,
       initialCapital: 10_000,
       strategy: baseStrategy,
-      strategyOptimizer: (trainCandles, strategy) => {
+      strategyOptimizer: (trainCandles, strategy): StrategyExecutionConfig => {
         observed.push(trainCandles.map((candle) => candle.close));
         if (!strategy.strategy) throw new Error("base strategy configuration is required");
-        return {
-          ...strategy,
-          strategy: { ...strategy.strategy, fastPeriod: 7, entryThreshold: 0.8 }
-        };
+        const selectedStrategy = strategy.strategy;
+        return { ...strategy, strategy: { ...selectedStrategy, fastPeriod: 7, entryThreshold: 0.8 } };
       },
       stressScenarios: [],
       robustnessThresholds: permissiveThresholds,
@@ -179,10 +141,11 @@ describe("walk-forward pipeline", () => {
     expect(observed[0]).toEqual(strategyCandles.slice(0, 30).map((candle) => candle.close));
     expect(observed[1]).toEqual(strategyCandles.slice(15, 45).map((candle) => candle.close));
     for (const window of result.windows) {
-      expect(window.selectedStrategy).toBeDefined();
-      expect(window.selectedStrategy!.strategy).toBeDefined();
-      expect(window.selectedStrategy!.strategy!.fastPeriod).toBe(7);
-      expect(window.selectedStrategy!.strategy!.entryThreshold).toBe(0.8);
+      const selectedStrategy = window.selectedStrategy;
+      expect(selectedStrategy).toBeDefined();
+      expect(selectedStrategy?.strategy).toBeDefined();
+      expect(selectedStrategy?.strategy?.fastPeriod).toBe(7);
+      expect(selectedStrategy?.strategy?.entryThreshold).toBe(0.8);
       expect(window.test.fills.length).toBeGreaterThanOrEqual(0);
     }
   });

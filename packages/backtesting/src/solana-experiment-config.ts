@@ -8,7 +8,7 @@ export const SOL_RESEARCH_INTERVAL = "1H";
 // Fixed research period for reproducibility. This is configuration only; it does not
 // imply that the strategy is profitable or suitable for live trading.
 export const SOL_RESEARCH_START_MS = Date.parse("2025-01-01T00:00:00.000Z");
-export const SOL_RESEARCH_END_MS = Date.parse("2025-12-31T23:00:00.000Z");
+export const SOL_RESEARCH_END_MS = Date.parse("2025-12-31T23:59:59.999Z");
 
 export const SOL_STRESS_SCENARIOS: readonly StressScenario[] = [
   "BASE",

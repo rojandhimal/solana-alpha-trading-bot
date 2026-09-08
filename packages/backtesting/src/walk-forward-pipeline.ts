@@ -39,32 +39,17 @@ export interface WalkForwardPipelineInput extends Omit<BacktestPipelineInput, "c
   strategyOptimizer?: WalkForwardStrategyOptimizer;
 }
 
-function fillsForRange(
-  fills: readonly ExecutionFill[],
-  start: number,
-  end: number
-): ExecutionFill[] {
+function fillsForRange(fills: readonly ExecutionFill[], start: number, end: number): ExecutionFill[] {
   return fills
-    .filter(
-      (fill) =>
-        fill.signalIndex >= start &&
-        fill.executionIndex >= start &&
-        fill.signalIndex < end &&
-        fill.executionIndex < end
-    )
-    .map((fill) => ({
-      ...fill,
-      signalIndex: fill.signalIndex - start,
-      executionIndex: fill.executionIndex - start
-    }));
+    .filter((fill) => fill.signalIndex >= start && fill.executionIndex >= start && fill.signalIndex < end && fill.executionIndex < end)
+    .map((fill) => ({ ...fill, signalIndex: fill.signalIndex - start, executionIndex: fill.executionIndex - start }));
 }
 
 function median(values: readonly number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  const upper = sorted[middle]!;
-  return sorted.length % 2 === 0 ? (sorted[middle - 1]! + upper) / 2 : upper;
+  return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!;
 }
 
 function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
@@ -73,12 +58,10 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
   const initialCapital = windows[0]?.test.baseline.initialCapital ?? 0;
   const totalReturnPct = initialCapital === 0 ? 0 : (netProfit / initialCapital) * 100;
   const maxDrawdownPct = windows.reduce((max, window) => Math.max(max, window.test.metrics.maxDrawdownPct), 0);
-
   let winningTrades = 0;
   let losingTrades = 0;
   let grossProfit = 0;
   let grossLoss = 0;
-
   for (const window of windows) {
     const metrics = window.test.metrics;
     const wins = (metrics.winRatePct / 100) * metrics.tradeCount;
@@ -88,30 +71,17 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
     grossProfit += metrics.averageWin * wins;
     grossLoss += metrics.averageLoss * losses;
   }
-
   const winRatePct = tradeCount === 0 ? 0 : (winningTrades / tradeCount) * 100;
   const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Number.POSITIVE_INFINITY : 0) : grossProfit / grossLoss;
   const averageWin = winningTrades === 0 ? 0 : grossProfit / winningTrades;
   const averageLoss = losingTrades === 0 ? 0 : grossLoss / losingTrades;
-
-  return {
-    totalReturnPct,
-    netProfit,
-    maxDrawdownPct,
-    tradeCount,
-    winRatePct,
-    profitFactor,
-    expectancy: tradeCount === 0 ? 0 : netProfit / tradeCount,
-    averageWin,
-    averageLoss
-  };
+  return { totalReturnPct, netProfit, maxDrawdownPct, tradeCount, winRatePct, profitFactor, expectancy: tradeCount === 0 ? 0 : netProfit / tradeCount, averageWin, averageLoss };
 }
 
 function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): WalkForwardConsistency {
   const returns = windows.map((window) => window.test.metrics.totalReturnPct);
   const drawdowns = windows.map((window) => window.test.metrics.maxDrawdownPct);
   const profitable = returns.filter((value) => value > 0).length;
-
   return {
     windowCount: windows.length,
     profitableWindowPct: windows.length === 0 ? 0 : (profitable / windows.length) * 100,
@@ -126,28 +96,17 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test } = splitWalkForward(input.candles, window);
-    const selectedStrategy = input.strategy && input.strategyOptimizer
-      ? input.strategyOptimizer(train, input.strategy)
-      : input.strategy;
-
+    const selectedStrategy = input.strategy && input.strategyOptimizer ? input.strategyOptimizer(train, input.strategy) : input.strategy;
     const trainInput: BacktestPipelineInput = input.fills
       ? { ...input, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train, strategy: selectedStrategy }
       : { ...input, candles: train, strategy: selectedStrategy };
     const testInput: BacktestPipelineInput = input.fills
       ? { ...input, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test, strategy: selectedStrategy }
       : { ...input, candles: test, strategy: selectedStrategy };
-
-    return {
-      ...window,
-      selectedStrategy,
-      train: runBacktestPipeline(trainInput),
-      test: runBacktestPipeline(testInput)
-    };
+    return { ...window, selectedStrategy, train: runBacktestPipeline(trainInput), test: runBacktestPipeline(testInput) };
   });
-
   const outOfSample = aggregateOutOfSampleMetrics(windows);
   const consistency = calculateConsistency(windows);
   const robustness = evaluateWalkForwardRobustness({ outOfSample, consistency }, input.robustnessThresholds);
-
   return { windows, outOfSample, consistency, robustness };
 }

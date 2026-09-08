@@ -1,4 +1,5 @@
 import type { HistoricalDataQuery, HistoricalDataSource } from "../../market-data/src/historical-source.js";
+import { assertHistoricalDataQuality } from "../../market-data/src/historical-data-quality.js";
 import type { BacktestPipelineInput, BacktestPipelineResult } from "./backtest-pipeline.js";
 import { runBacktestPipeline } from "./backtest-pipeline.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
@@ -19,9 +20,10 @@ export async function runHistoricalBacktest(
   config: HistoricalBacktestConfig
 ): Promise<BacktestPipelineResult> {
   const bars = await source.load(query);
-  const candles = toBacktestCandles(bars);
-  if (candles.length === 0) throw new Error("historical source returned no candles");
+  if (bars.length === 0) throw new Error("historical source returned no candles");
+  assertHistoricalDataQuality(bars, query, { requireRangeCoverage: true });
 
+  const candles = toBacktestCandles(bars);
   const input: BacktestPipelineInput = {
     candles,
     strategy: config.strategy,

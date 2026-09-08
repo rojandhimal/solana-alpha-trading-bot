@@ -164,7 +164,6 @@ describe("walk-forward pipeline", () => {
       strategy: baseStrategy,
       strategyOptimizer: (trainCandles, strategy) => {
         observed.push(trainCandles.map((candle) => candle.close));
-        expect(trainCandles.every((candle) => candle.close < 1_030 || candle.close >= 1_030)).toBe(true);
         if (!strategy.strategy) throw new Error("base strategy configuration is required");
         return {
           ...strategy,

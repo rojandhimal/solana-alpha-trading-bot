@@ -7,7 +7,7 @@ describe("SOLANA_EXPERIMENT_CONFIG", () => {
     expect(SOLANA_EXPERIMENT_CONFIG.query.symbol).toBe(SOLANA_EXPERIMENT_CONFIG.symbol);
     expect(SOLANA_EXPERIMENT_CONFIG.query.interval).toBe("1H");
     expect(SOLANA_EXPERIMENT_CONFIG.query.startTime).toBe(1735689600000);
-    expect(SOLANA_EXPERIMENT_CONFIG.query.endTime).toBe(1767225599000);
+    expect(SOLANA_EXPERIMENT_CONFIG.query.endTime).toBe(1767222000000);
   });
 
   it("keeps research capital, walk-forward, strategy and stress settings deterministic", () => {

@@ -54,10 +54,26 @@ function median(values: readonly number[]): number {
 
 function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
   const tradeCount = windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0);
-  const netProfit = windows.reduce((sum, window) => sum + window.test.metrics.netProfit, 0);
   const initialCapital = windows[0]?.test.baseline.initialCapital ?? 0;
+  let compoundedEquity = initialCapital;
+  let peakEquity = initialCapital;
+  let maxDrawdownPct = 0;
+
+  for (const window of windows) {
+    const windowInitialCapital = window.test.baseline.initialCapital;
+    if (!Number.isFinite(windowInitialCapital) || windowInitialCapital <= 0) continue;
+    for (const point of window.test.baseline.equityCurve) {
+      const normalizedEquity = point.equity / windowInitialCapital;
+      const equity = compoundedEquity * normalizedEquity;
+      peakEquity = Math.max(peakEquity, equity);
+      const drawdownPct = peakEquity === 0 ? 0 : ((peakEquity - equity) / peakEquity) * 100;
+      maxDrawdownPct = Math.max(maxDrawdownPct, drawdownPct);
+    }
+    compoundedEquity *= window.test.baseline.finalEquity / windowInitialCapital;
+  }
+
+  const netProfit = compoundedEquity - initialCapital;
   const totalReturnPct = initialCapital === 0 ? 0 : (netProfit / initialCapital) * 100;
-  const maxDrawdownPct = windows.reduce((max, window) => Math.max(max, window.test.metrics.maxDrawdownPct), 0);
   let winningTrades = 0;
   let losingTrades = 0;
   let grossProfit = 0;

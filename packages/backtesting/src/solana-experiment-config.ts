@@ -1,5 +1,5 @@
 import type { HistoricalExperimentConfig } from "./historical-experiment.js";
-import { DEFAULT_ALPHA_STRATEGY } from "./alpha-strategy.js";
+import type { AlphaStrategyConfig } from "./alpha-strategy.js";
 import type { StressScenario } from "./stress-testing.js";
 
 export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
@@ -32,6 +32,16 @@ export const SOL_WALK_FORWARD = {
   stepBars: 30 * 24
 };
 
+export const SOL_BASELINE_STRATEGY: AlphaStrategyConfig = {
+  fastPeriod: 10,
+  slowPeriod: 30,
+  rsiPeriod: 14,
+  momentumPeriod: 10,
+  atrPeriod: 14,
+  volumePeriod: 20,
+  entryThreshold: 0.5
+};
+
 export function createSolHistoricalExperimentConfig(): HistoricalExperimentConfig {
   return {
     symbol: SOL_TOKEN_ADDRESS,
@@ -44,10 +54,12 @@ export function createSolHistoricalExperimentConfig(): HistoricalExperimentConfi
     initialCapital: 10_000,
     baselineStrategy: {
       quantity: 1,
-      strategy: DEFAULT_ALPHA_STRATEGY
+      strategy: SOL_BASELINE_STRATEGY
     },
     walkForward: SOL_WALK_FORWARD,
     stressScenarios: SOL_STRESS_SCENARIOS,
     robustnessThresholds: SOL_ROBUSTNESS_THRESHOLDS
   };
 }
+
+export const SOLANA_EXPERIMENT_CONFIG = createSolHistoricalExperimentConfig();

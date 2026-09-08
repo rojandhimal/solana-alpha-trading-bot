@@ -100,21 +100,24 @@ export function auditHistoricalData(
     }
   }
 
-  return {
+  const report: HistoricalDataQualityReport = {
     valid: errors.length === 0,
     barCount: bars.length,
-    firstTimestamp,
-    lastTimestamp,
     duplicateTimestampCount,
     outOfOrderCount,
     invalidCandleCount,
     invalidVolumeCount,
     gapCount,
     largestGapMs,
-    coverageStart,
-    coverageEnd,
     errors
   };
+
+  if (firstTimestamp !== undefined) report.firstTimestamp = firstTimestamp;
+  if (lastTimestamp !== undefined) report.lastTimestamp = lastTimestamp;
+  if (coverageStart !== undefined) report.coverageStart = coverageStart;
+  if (coverageEnd !== undefined) report.coverageEnd = coverageEnd;
+
+  return report;
 }
 
 export function assertHistoricalDataQuality(

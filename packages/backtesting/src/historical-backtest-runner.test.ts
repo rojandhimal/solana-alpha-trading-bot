@@ -38,6 +38,25 @@ describe("runHistoricalBacktest", () => {
     expect(result.robustness).toBeDefined();
   });
 
+  it("rejects malformed historical candles before backtesting", async () => {
+    const source = new InMemoryHistoricalDataSource([
+      { timestamp: 60_000, open: 100, high: 99, low: 98, close: 100, volume: 100 },
+      { timestamp: 120_000, open: 101, high: 102, low: 100, close: 101, volume: 100 }
+    ]);
+
+    await expect(runHistoricalBacktest(source, {
+      symbol: "SOL",
+      interval: "1m",
+      startTime: 60_000,
+      endTime: 120_000
+    }, {
+      initialCapital: 10_000,
+      strategy: { quantity: 1 },
+      stressScenarios,
+      robustnessThresholds
+    })).rejects.toThrow("historical data quality check failed");
+  });
+
   it("rejects an empty historical range", async () => {
     const source = new InMemoryHistoricalDataSource([]);
 

@@ -110,11 +110,11 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
 }
 
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
-  const { candles: inputCandles, walkForward, strategyOptimizer, ...pipelineConfig } = input;
+  const { candles: inputCandles, walkForward, strategyOptimizer, strategy: baseStrategy, ...pipelineConfig } = input;
   const windows = createWalkForwardWindows(inputCandles.length, walkForward).map((window) => {
-    const { train, test } = splitWalkForward(inputCandles, window);
-    const selectedStrategy = input.strategy && strategyOptimizer ? strategyOptimizer(train, input.strategy) : input.strategy;
+    const selectedStrategy = baseStrategy && strategyOptimizer ? strategyOptimizer(inputCandles.slice(window.trainStart, window.trainEnd), baseStrategy) : baseStrategy;
     const strategyConfig = selectedStrategy === undefined ? {} : { strategy: selectedStrategy };
+    const { train, test } = splitWalkForward(inputCandles, window);
     const trainInput: BacktestPipelineInput = input.fills
       ? { ...pipelineConfig, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train, ...strategyConfig }
       : { ...pipelineConfig, candles: train, ...strategyConfig };

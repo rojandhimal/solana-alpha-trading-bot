@@ -142,6 +142,7 @@ describe("walk-forward pipeline", () => {
       strategyOptimizer: (trainCandles, strategy) => {
         observed.push(trainCandles.map((candle) => candle.close));
         expect(trainCandles.every((candle) => candle.close < 1_030 || candle.close >= 1_030)).toBe(true);
+        if (!strategy.strategy) throw new Error("base strategy configuration is required");
         return {
           ...strategy,
           strategy: { ...strategy.strategy, fastPeriod: 7, entryThreshold: 0.8 }
@@ -155,8 +156,12 @@ describe("walk-forward pipeline", () => {
     expect(observed).toHaveLength(2);
     expect(observed[0]).toEqual(strategyCandles.slice(0, 30).map((candle) => candle.close));
     expect(observed[1]).toEqual(strategyCandles.slice(15, 45).map((candle) => candle.close));
-    expect(result.windows.every((window) => window.selectedStrategy?.strategy.fastPeriod === 7)).toBe(true);
-    expect(result.windows.every((window) => window.selectedStrategy?.strategy.entryThreshold === 0.8)).toBe(true);
-    expect(result.windows.every((window) => window.test.fills.length >= 0)).toBe(true);
+    for (const window of result.windows) {
+      expect(window.selectedStrategy).toBeDefined();
+      expect(window.selectedStrategy!.strategy).toBeDefined();
+      expect(window.selectedStrategy!.strategy!.fastPeriod).toBe(7);
+      expect(window.selectedStrategy!.strategy!.entryThreshold).toBe(0.8);
+      expect(window.test.fills.length).toBeGreaterThanOrEqual(0);
+    }
   });
 });

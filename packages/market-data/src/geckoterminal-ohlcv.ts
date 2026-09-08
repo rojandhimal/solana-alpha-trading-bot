@@ -17,11 +17,13 @@ export interface GeckoTerminalOhlcvSourceOptions {
   maxRetries?: number;
   retryBaseDelayMs?: number;
   sleepImpl?: (delayMs: number) => Promise<void>;
+  pageLimit?: number;
 }
 
 const DEFAULT_BASE_URL = "https://api.geckoterminal.com/api/v2";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 250;
+const DEFAULT_PAGE_LIMIT = 1000;
 
 export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly baseUrl: string;
@@ -29,6 +31,7 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly maxRetries: number;
   private readonly retryBaseDelayMs: number;
   private readonly sleepImpl: (delayMs: number) => Promise<void>;
+  private readonly pageLimit: number;
 
   constructor(options: GeckoTerminalOhlcvSourceOptions = {}) {
     if (options.maxRetries !== undefined && (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)) {
@@ -37,12 +40,16 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
     if (options.retryBaseDelayMs !== undefined && (!Number.isFinite(options.retryBaseDelayMs) || options.retryBaseDelayMs < 0)) {
       throw new Error("retryBaseDelayMs must be non-negative");
     }
+    if (options.pageLimit !== undefined && (!Number.isInteger(options.pageLimit) || options.pageLimit <= 0 || options.pageLimit > 1000)) {
+      throw new Error("pageLimit must be an integer between 1 and 1000");
+    }
 
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.retryBaseDelayMs = options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
     this.sleepImpl = options.sleepImpl ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+    this.pageLimit = options.pageLimit ?? DEFAULT_PAGE_LIMIT;
   }
 
   async load(query: HistoricalDataQuery): Promise<readonly OhlcvBar[]> {
@@ -54,21 +61,40 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
     const timeframe = toGeckoTimeframe(query.interval);
     const address = encodeURIComponent(query.symbol);
-    const url = new URL(`${this.baseUrl}/networks/solana/tokens/${address}/ohlcv/${timeframe}`);
-    url.searchParams.set("currency", "usd");
-    url.searchParams.set("include_empty_intervals", "false");
-    url.searchParams.set("limit", "1000");
-    if (query.startTime !== undefined) url.searchParams.set("before_timestamp", String(Math.floor(query.startTime / 1000)));
-    if (query.endTime !== undefined) url.searchParams.set("after_timestamp", String(Math.floor(query.endTime / 1000)));
+    const bars = new Map<number, OhlcvBar>();
+    let beforeTimestamp = query.endTime === undefined ? undefined : Math.floor(query.endTime / 1000) + 1;
 
-    const response = await this.fetchWithRetry(url);
-    const parsed = responseSchema.parse(await response.json());
-    const bars = parsed.data.attributes.ohlcv_list.map(toOhlcvBar);
+    for (;;) {
+      const url = new URL(`${this.baseUrl}/networks/solana/tokens/${address}/ohlcv/${timeframe}`);
+      url.searchParams.set("currency", "usd");
+      url.searchParams.set("include_empty_intervals", "false");
+      url.searchParams.set("limit", String(this.pageLimit));
+      url.searchParams.set("aggregate", String(toAggregate(query.interval)));
+      if (beforeTimestamp !== undefined) url.searchParams.set("before_timestamp", String(beforeTimestamp));
 
-    return bars
-      .filter((bar) => query.startTime === undefined || bar.timestamp >= query.startTime)
-      .filter((bar) => query.endTime === undefined || bar.timestamp <= query.endTime)
-      .sort((a, b) => a.timestamp - b.timestamp);
+      const response = await this.fetchWithRetry(url);
+      const parsed = responseSchema.parse(await response.json());
+      const page = parsed.data.attributes.ohlcv_list.map(toOhlcvBar);
+      if (page.length === 0) break;
+
+      let oldestTimestamp = Number.POSITIVE_INFINITY;
+      for (const bar of page) {
+        oldestTimestamp = Math.min(oldestTimestamp, bar.timestamp);
+        if ((query.startTime === undefined || bar.timestamp >= query.startTime) &&
+            (query.endTime === undefined || bar.timestamp <= query.endTime)) {
+          bars.set(bar.timestamp, bar);
+        }
+      }
+
+      if (query.startTime !== undefined && oldestTimestamp <= query.startTime) break;
+      if (page.length < this.pageLimit) break;
+
+      const nextBeforeTimestamp = Math.floor(oldestTimestamp / 1000);
+      if (beforeTimestamp !== undefined && nextBeforeTimestamp >= beforeTimestamp) break;
+      beforeTimestamp = nextBeforeTimestamp;
+    }
+
+    return [...bars.values()].sort((a, b) => a.timestamp - b.timestamp);
   }
 
   private async fetchWithRetry(url: URL): Promise<Response> {
@@ -90,14 +116,20 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   }
 }
 
-function toGeckoTimeframe(interval: string): string {
+function toGeckoTimeframe(interval: string): "minute" | "hour" | "day" {
   const normalized = interval.trim().toUpperCase();
-  if (normalized === "1M") return "minute";
-  if (normalized === "5M") return "minute";
-  if (normalized === "15M") return "minute";
-  if (normalized === "1H") return "hour";
-  if (normalized === "4H") return "hour";
+  if (["1M", "5M", "15M"].includes(normalized)) return "minute";
+  if (["1H", "4H"].includes(normalized)) return "hour";
   if (normalized === "1D") return "day";
+  throw new Error(`unsupported GeckoTerminal interval: ${interval}`);
+}
+
+function toAggregate(interval: string): number {
+  const normalized = interval.trim().toUpperCase();
+  if (normalized === "1M" || normalized === "1H" || normalized === "1D") return 1;
+  if (normalized === "5M") return 5;
+  if (normalized === "15M") return 15;
+  if (normalized === "4H") return 4;
   throw new Error(`unsupported GeckoTerminal interval: ${interval}`);
 }
 

@@ -28,6 +28,17 @@ export interface HistoricalExperimentResult {
   optimized: WalkForwardPipelineResult;
 }
 
+function validateQuery(config: HistoricalExperimentConfig): void {
+  if (!config.symbol.trim()) throw new Error("symbol is required");
+  if (config.query.symbol !== config.symbol) throw new Error("query.symbol must match config.symbol");
+  if (!config.query.interval.trim()) throw new Error("query.interval is required");
+  if (config.query.startTime !== undefined && !Number.isFinite(config.query.startTime)) throw new Error("query.startTime must be finite");
+  if (config.query.endTime !== undefined && !Number.isFinite(config.query.endTime)) throw new Error("query.endTime must be finite");
+  if (config.query.startTime !== undefined && config.query.endTime !== undefined && config.query.startTime > config.query.endTime) {
+    throw new Error("query.startTime must be less than or equal to query.endTime");
+  }
+}
+
 function runWfo(
   candles: readonly Candle[],
   config: HistoricalExperimentConfig,
@@ -48,7 +59,7 @@ export async function runHistoricalExperiment(
   source: HistoricalDataSource,
   config: HistoricalExperimentConfig
 ): Promise<HistoricalExperimentResult> {
-  if (!config.symbol.trim()) throw new Error("symbol is required");
+  validateQuery(config);
   if (!Number.isFinite(config.initialCapital) || config.initialCapital <= 0) {
     throw new Error("initialCapital must be a positive finite number");
   }

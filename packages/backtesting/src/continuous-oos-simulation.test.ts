@@ -52,7 +52,8 @@ describe("continuous OOS simulation", () => {
 
   it("rejects a window without a selected strategy", () => {
     const invalidWindow = window(10, 20);
-    invalidWindow.selection.best = undefined;
+    const { best: _best, ...selectionWithoutBest } = invalidWindow.selection;
+    invalidWindow.selection = selectionWithoutBest;
 
     expect(() => runContinuousOosSimulation({
       candles: candles(30, 1),

@@ -7,7 +7,6 @@ import type { WalkForwardParameterSelectionWindow } from "./walk-forward-paramet
 import type { StrategyCandle } from "./alpha-strategy.js";
 
 type StrategyFills = ReturnType<typeof generateStrategyFillsWithState>["fills"];
-
 type ExecutionModelParameters = NonNullable<StrategyExecutionConfig["execution"]>;
 
 export interface ContinuousOosSimulationInput {
@@ -65,11 +64,12 @@ export function runContinuousOosSimulation(input: ContinuousOosSimulationInput):
       throw new Error("walk-forward test window is outside candle range");
     }
     if (window.testStart < previousEnd) throw new Error("walk-forward test windows overlap");
+    if (window.selection.best === undefined) throw new Error("walk-forward window has no selected strategy");
 
     const testCandles = input.candles.slice(window.testStart, window.testEnd);
     const config: StrategyExecutionConfig = input.execution === undefined
-      ? { quantity: input.quantity, strategy: window.selection.best!.candidate.strategy }
-      : { quantity: input.quantity, strategy: window.selection.best!.candidate.strategy, execution: input.execution };
+      ? { quantity: input.quantity, strategy: window.selection.best.candidate.strategy }
+      : { quantity: input.quantity, strategy: window.selection.best.candidate.strategy, execution: input.execution };
     const result = generateStrategyFillsWithState(strategyCandles(testCandles), config, position);
     fills.push(...offsetFills(result.fills, offset));
     position = result.finalPosition;

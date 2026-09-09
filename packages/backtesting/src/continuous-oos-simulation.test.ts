@@ -50,6 +50,19 @@ describe("continuous OOS simulation", () => {
     expect(() => runContinuousOosSimulation({ candles: candles(40, 1), windows: [window(10, 25), window(20, 35)], initialCapital: 10_000, quantity: 1 })).toThrow("windows overlap");
   });
 
+  it("rejects a window without a selected strategy", () => {
+    const invalidWindow = window(10, 20);
+    invalidWindow.selection.best = undefined;
+
+    expect(() => runContinuousOosSimulation({
+      candles: candles(30, 1),
+      windows: [invalidWindow],
+      initialCapital: 10_000,
+      quantity: 1,
+      execution
+    })).toThrow("walk-forward window has no selected strategy");
+  });
+
   it("runs ordered non-overlapping windows and returns a continuous result", () => {
     const result = runContinuousOosSimulation({
       candles: candles(60, 1),

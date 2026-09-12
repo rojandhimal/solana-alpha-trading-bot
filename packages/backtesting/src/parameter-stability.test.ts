@@ -15,6 +15,14 @@ describe("parameter stability analysis", () => {
     const result = analyzeParameterStability({ candles, initialCapital: 10_000, quantity: 1, candidates: [{ label: "baseline", strategy: base }, { label: "slower", strategy: { ...base, fastPeriod: 8, slowPeriod: 16 } }], execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }, stressScenarios: [], robustnessThresholds: thresholds });
     expect(result.candidates).toHaveLength(2); expect(result.candidates.map((candidate) => candidate.rank)).toEqual([1, 2]); expect(result.best?.rank).toBe(1); expect(result.candidates.every((candidate) => Number.isFinite(candidate.riskAdjustedScore))).toBe(true); expect(result.scoreSpreadPct).toBeGreaterThanOrEqual(0); expect(typeof result.stable).toBe("boolean");
   });
+  it("filters candidates below the minimum trade-count guard and fails closed when none qualify", () => {
+    const result = analyzeParameterStability({ candles, initialCapital: 10_000, quantity: 1, candidates: [{ label: "only", strategy: base }], stressScenarios: [], robustnessThresholds: thresholds, minTrades: 10_000 });
+    expect(result.candidates).toHaveLength(0); expect(result.best).toBeUndefined(); expect(result.stable).toBe(false);
+  });
+  it("rejects an invalid minimum trade-count guard", () => {
+    expect(() => analyzeParameterStability({ candles, initialCapital: 10_000, quantity: 1, candidates: [{ strategy: base }], stressScenarios: [], robustnessThresholds: thresholds, minTrades: -1 })).toThrow("minTrades must be a non-negative integer");
+    expect(() => analyzeParameterStability({ candles, initialCapital: 10_000, quantity: 1, candidates: [{ strategy: base }], stressScenarios: [], robustnessThresholds: thresholds, minTrades: 1.5 })).toThrow("minTrades must be a non-negative integer");
+  });
   it("does not claim stability when only one candidate is available", () => {
     const result = analyzeParameterStability({ candles, initialCapital: 10_000, quantity: 1, candidates: [{ label: "only", strategy: base }], stressScenarios: [], robustnessThresholds: thresholds });
     expect(result.best?.rank).toBe(1); expect(result.stable).toBe(false);

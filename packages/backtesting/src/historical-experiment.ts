@@ -73,7 +73,10 @@ export async function runHistoricalExperiment(
 
   const baseline = runWfo(candles, config);
   const optimized = runWfo(candles, config, (trainCandles, base) =>
-    optimizeAlphaStrategy(trainCandles, base, config.optimization).strategy
+    optimizeAlphaStrategy(trainCandles, base, {
+      ...config.optimization,
+      initialCapital: config.initialCapital
+    }).strategy
   );
 
   return { symbol: config.symbol, query: config.query, dataset, baseline, optimized };

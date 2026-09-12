@@ -29,6 +29,26 @@ describe("alpha strategy optimizer", () => {
     expect(Number.isFinite(result.score)).toBe(true);
   });
 
+  it("filters candidates below the minimum trade count", () => {
+    const result = optimizeAlphaStrategy(candles, base, {
+      fastPeriods: [3], slowPeriods: [10], rsiPeriods: [5], momentumPeriods: [5], atrPeriods: [5], volumePeriods: [5], entryThresholds: [0.5], minTrades: 999
+    });
+    expect(result.score).toBe(Number.NEGATIVE_INFINITY);
+    expect(result.tradeCount).toBe(0);
+  });
+
+  it("rejects an oversized candidate grid instead of truncating it", () => {
+    expect(() => optimizeAlphaStrategy(candles, base, {
+      fastPeriods: [3, 4, 5], slowPeriods: [10, 11, 12], rsiPeriods: [5, 6], momentumPeriods: [5, 6], atrPeriods: [5, 6], volumePeriods: [5, 6], entryThresholds: [0.4, 0.5, 0.6], maxCandidates: 10
+    })).toThrow("exceeding maxCandidates 10");
+  });
+
+  it("rejects invalid optimizer guard values", () => {
+    expect(() => optimizeAlphaStrategy(candles, base, { minProfitFactor: -1 })).toThrow("minProfitFactor must be non-negative and finite");
+    expect(() => optimizeAlphaStrategy(candles, base, { minExpectancy: Number.NaN })).toThrow("minExpectancy must be finite");
+    expect(() => optimizeAlphaStrategy(candles, base, { maxCandidates: 0 })).toThrow("maxCandidates must be a positive integer");
+  });
+
   it("rejects invalid initial capital", () => {
     expect(() => optimizeAlphaStrategy(candles, base, { initialCapital: 0 })).toThrow("initialCapital must be positive and finite");
   });

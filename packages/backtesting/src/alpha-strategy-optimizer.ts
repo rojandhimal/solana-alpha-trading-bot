@@ -13,6 +13,9 @@ export interface AlphaStrategyOptimizationOptions {
   volumePeriods?: readonly number[];
   entryThresholds?: readonly number[];
   minTrades?: number;
+  minProfitFactor?: number;
+  minExpectancy?: number;
+  maxCandidates?: number;
   initialCapital?: number;
 }
 
@@ -26,7 +29,7 @@ export interface AlphaStrategyOptimizationResult {
   expectancy: number;
 }
 
-const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades" | "initialCapital">> = {
+const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades" | "minProfitFactor" | "minExpectancy" | "maxCandidates" | "initialCapital">> = {
   fastPeriods: [5, 10, 15],
   slowPeriods: [20, 30, 40],
   rsiPeriods: [10, 14],
@@ -72,7 +75,9 @@ function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyO
   for (const [name, values] of Object.entries({ fastPeriods, slowPeriods, rsiPeriods, momentumPeriods, atrPeriods, volumePeriods })) {
     validatePeriods(name, values);
   }
-  if (entryThresholds.some((value) => !Number.isFinite(value))) throw new Error("entryThresholds must be finite");
+  if (entryThresholds.length === 0 || entryThresholds.some((value) => !Number.isFinite(value))) {
+    throw new Error("entryThresholds must contain finite values");
+  }
 
   const candidates: AlphaStrategyConfig[] = [];
   const seen = new Set<string>();
@@ -107,11 +112,22 @@ export function optimizeAlphaStrategy(
   if (trainCandles.length === 0) throw new Error("trainCandles must not be empty");
   const minTrades = options.minTrades ?? 3;
   if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
+  const minProfitFactor = options.minProfitFactor ?? 0;
+  if (!Number.isFinite(minProfitFactor) || minProfitFactor < 0) throw new Error("minProfitFactor must be non-negative and finite");
+  const minExpectancy = options.minExpectancy ?? -Number.MAX_VALUE;
+  if (!Number.isFinite(minExpectancy)) throw new Error("minExpectancy must be finite");
+  const maxCandidates = options.maxCandidates ?? 5_000;
+  if (!Number.isInteger(maxCandidates) || maxCandidates < 1) throw new Error("maxCandidates must be a positive integer");
   const initialCapital = options.initialCapital ?? 10_000;
   if (!Number.isFinite(initialCapital) || initialCapital <= 0) throw new Error("initialCapital must be positive and finite");
 
+  const candidates = candidateConfigs(base, options);
+  if (candidates.length > maxCandidates) {
+    throw new Error(`candidate grid contains ${candidates.length} candidates, exceeding maxCandidates ${maxCandidates}`);
+  }
+
   let best: AlphaStrategyOptimizationResult | undefined;
-  for (const strategy of candidateConfigs(base, options)) {
+  for (const strategy of candidates) {
     const result = runBacktestPipeline({
       candles: trainCandles,
       strategy: { ...base, strategy },
@@ -120,6 +136,8 @@ export function optimizeAlphaStrategy(
       robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Number.MAX_VALUE }
     });
     if (result.metrics.tradeCount < minTrades) continue;
+    if (result.metrics.profitFactor < minProfitFactor) continue;
+    if (result.metrics.expectancy < minExpectancy) continue;
 
     const candidate: AlphaStrategyOptimizationResult = {
       strategy: { ...base, strategy },

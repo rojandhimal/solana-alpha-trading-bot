@@ -26,6 +26,7 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 250;
 const DEFAULT_PAGE_LIMIT = 1000;
 const DEFAULT_USER_AGENT = "solana-alpha-trading-bot/0.1";
+const DEFAULT_API_VERSION = "20230203";
 
 export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly baseUrl: string;
@@ -105,7 +106,7 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
     for (let attempt = 0; ; attempt += 1) {
       const response = await this.fetchImpl(url, {
         headers: {
-          Accept: "application/json",
+          Accept: `application/json;version=${DEFAULT_API_VERSION}`,
           "User-Agent": DEFAULT_USER_AGENT
         },
         signal: AbortSignal.timeout(15_000)

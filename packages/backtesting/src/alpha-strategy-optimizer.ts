@@ -1,5 +1,6 @@
 import type { Candle } from "./execution-model.js";
 import { runBacktestPipeline } from "./backtest-pipeline.js";
+import { calculateParameterStabilityScore } from "./parameter-stability.js";
 import type { AlphaStrategyConfig } from "./alpha-strategy.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 
@@ -12,6 +13,7 @@ export interface AlphaStrategyOptimizationOptions {
   volumePeriods?: readonly number[];
   entryThresholds?: readonly number[];
   minTrades?: number;
+  initialCapital?: number;
 }
 
 export interface AlphaStrategyOptimizationResult {
@@ -24,7 +26,7 @@ export interface AlphaStrategyOptimizationResult {
   expectancy: number;
 }
 
-const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades">> = {
+const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades" | "initialCapital">> = {
   fastPeriods: [5, 10, 15],
   slowPeriods: [20, 30, 40],
   rsiPeriods: [10, 14],
@@ -44,11 +46,16 @@ function validatePeriods(name: string, values: readonly number[]): void {
   }
 }
 
-function score(result: { metrics: { totalReturnPct: number; maxDrawdownPct: number; profitFactor: number; expectancy: number; tradeCount: number } }): number {
-  const { totalReturnPct, maxDrawdownPct, profitFactor, expectancy, tradeCount } = result.metrics;
-  if (![totalReturnPct, maxDrawdownPct, expectancy].every(Number.isFinite)) return Number.NEGATIVE_INFINITY;
-  const boundedProfitFactor = Number.isFinite(profitFactor) ? profitFactor : profitFactor > 0 ? 10 : 0;
-  return totalReturnPct + boundedProfitFactor * 2 + expectancy * 0.1 - maxDrawdownPct * 0.75 + Math.log1p(tradeCount);
+function candidateKey(strategy: AlphaStrategyConfig): string {
+  return [
+    strategy.fastPeriod,
+    strategy.slowPeriod,
+    strategy.rsiPeriod,
+    strategy.momentumPeriod,
+    strategy.atrPeriod,
+    strategy.volumePeriod,
+    strategy.entryThreshold
+  ].join(":");
 }
 
 function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyOptimizationOptions): AlphaStrategyConfig[] {
@@ -68,6 +75,7 @@ function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyO
   if (entryThresholds.some((value) => !Number.isFinite(value))) throw new Error("entryThresholds must be finite");
 
   const candidates: AlphaStrategyConfig[] = [];
+  const seen = new Set<string>();
   for (const fastPeriod of fastPeriods) {
     for (const slowPeriod of slowPeriods) {
       if (fastPeriod >= slowPeriod) continue;
@@ -76,7 +84,11 @@ function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyO
           for (const atrPeriod of atrPeriods) {
             for (const volumePeriod of volumePeriods) {
               for (const entryThreshold of entryThresholds) {
-                candidates.push({ fastPeriod, slowPeriod, rsiPeriod, momentumPeriod, atrPeriod, volumePeriod, entryThreshold });
+                const candidate = { fastPeriod, slowPeriod, rsiPeriod, momentumPeriod, atrPeriod, volumePeriod, entryThreshold };
+                const key = candidateKey(candidate);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                candidates.push(candidate);
               }
             }
           }
@@ -95,20 +107,23 @@ export function optimizeAlphaStrategy(
   if (trainCandles.length === 0) throw new Error("trainCandles must not be empty");
   const minTrades = options.minTrades ?? 3;
   if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
+  const initialCapital = options.initialCapital ?? 10_000;
+  if (!Number.isFinite(initialCapital) || initialCapital <= 0) throw new Error("initialCapital must be positive and finite");
 
   let best: AlphaStrategyOptimizationResult | undefined;
   for (const strategy of candidateConfigs(base, options)) {
     const result = runBacktestPipeline({
       candles: trainCandles,
       strategy: { ...base, strategy },
-      initialCapital: 10_000,
+      initialCapital,
       stressScenarios: [],
       robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Number.MAX_VALUE }
     });
     if (result.metrics.tradeCount < minTrades) continue;
+
     const candidate: AlphaStrategyOptimizationResult = {
       strategy: { ...base, strategy },
-      score: score(result),
+      score: calculateParameterStabilityScore(result.metrics, initialCapital),
       tradeCount: result.metrics.tradeCount,
       totalReturnPct: result.metrics.totalReturnPct,
       maxDrawdownPct: result.metrics.maxDrawdownPct,

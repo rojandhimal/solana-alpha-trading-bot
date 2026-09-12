@@ -12,6 +12,7 @@ const responseSchema = z.object({
 });
 
 export interface GeckoTerminalOhlcvSourceOptions {
+  poolAddress: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   maxRetries?: number;
@@ -27,13 +28,15 @@ const DEFAULT_PAGE_LIMIT = 1000;
 
 export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly baseUrl: string;
+  private readonly poolAddress: string;
   private readonly fetchImpl: typeof fetch;
   private readonly maxRetries: number;
   private readonly retryBaseDelayMs: number;
   private readonly sleepImpl: (delayMs: number) => Promise<void>;
   private readonly pageLimit: number;
 
-  constructor(options: GeckoTerminalOhlcvSourceOptions = {}) {
+  constructor(options: GeckoTerminalOhlcvSourceOptions) {
+    if (!options.poolAddress.trim()) throw new Error("poolAddress is required");
     if (options.maxRetries !== undefined && (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)) {
       throw new Error("maxRetries must be a non-negative integer");
     }
@@ -45,6 +48,7 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
     }
 
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+    this.poolAddress = options.poolAddress;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.retryBaseDelayMs = options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
@@ -60,14 +64,13 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
     }
 
     const timeframe = toGeckoTimeframe(query.interval);
-    const address = encodeURIComponent(query.symbol);
+    const pool = encodeURIComponent(this.poolAddress);
     const bars = new Map<number, OhlcvBar>();
     let beforeTimestamp = query.endTime === undefined ? undefined : Math.floor(query.endTime / 1000) + 1;
 
     for (;;) {
-      const url = new URL(`${this.baseUrl}/networks/solana/tokens/${address}/ohlcv/${timeframe}`);
+      const url = new URL(`${this.baseUrl}/networks/solana/pools/${pool}/ohlcv/${timeframe}`);
       url.searchParams.set("currency", "usd");
-      url.searchParams.set("include_empty_intervals", "false");
       url.searchParams.set("limit", String(this.pageLimit));
       url.searchParams.set("aggregate", String(toAggregate(query.interval)));
       if (beforeTimestamp !== undefined) url.searchParams.set("before_timestamp", String(beforeTimestamp));

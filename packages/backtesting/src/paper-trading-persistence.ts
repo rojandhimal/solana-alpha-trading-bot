@@ -20,18 +20,10 @@ export class InMemoryPaperTradingRepository implements PaperTradingRepository {
   async listEquity(sessionId: string): Promise<readonly PaperEquitySnapshot[]> { return this.equity.filter((r) => r.sessionId === sessionId).map((r) => ({ ...r })); }
 }
 
-export async function persistPaperSnapshot(
-  repository: PaperTradingRepository,
-  sessionId: string,
-  sequence: number,
-  snapshot: PaperTradingSnapshot,
-  timestampMs: number
-): Promise<void> {
+export async function persistPaperSnapshot(repository: PaperTradingRepository, sessionId: string, sequence: number, snapshot: PaperTradingSnapshot, timestampMs: number): Promise<void> {
   if (!sessionId.trim()) throw new Error("sessionId must not be empty");
   if (!Number.isInteger(sequence) || sequence < 0) throw new Error("sequence must be a non-negative integer");
   if (!Number.isFinite(timestampMs) || timestampMs < 0) throw new Error("timestampMs must be a non-negative number");
-  const fill = snapshot.accounting.equityCurve.length > 0 ? undefined : undefined;
-  void fill;
   const latest = snapshot.accounting.equityCurve.at(-1);
   if (!latest) return;
   await repository.saveEquity({ sessionId, sequence, timestampMs, equity: latest.equity, cash: latest.cash, positionQuantity: latest.positionQuantity, drawdownPct: latest.drawdownPct });

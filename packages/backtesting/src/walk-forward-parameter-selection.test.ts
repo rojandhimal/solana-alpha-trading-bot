@@ -7,12 +7,12 @@ const thresholds = { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfi
 
 describe("walk-forward parameter selection", () => {
   it("selects parameters from training data and evaluates the selected candidate only on the following test window", () => {
-    const result = runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "baseline", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false });
+    const result = runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "baseline", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, execution: { slippagePct: 0, feePct: 0, executionDelayBars: 0, liquidityMultiplier: 1, volatilityMultiplier: 1 }, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false, minTrades: 0 });
     expect(result.windows).toHaveLength(2); expect(result.windows[0]?.selection.candidates).toHaveLength(2); expect(result.windows[0]?.selection.best).toBeDefined(); expect(result.windows[0]?.test.baseline.initialCapital).toBe(10_000); expect(result.outOfSample.tradeCount).toBe(result.windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0));
   });
   it("does not let changes in the first OOS window affect parameter selection", () => {
     const futureChangedCandles = candles.map((candle, index) => index >= 30 && index < 45 ? { ...candle, open: candle.open * 3, high: candle.high * 3, low: candle.low * 3, close: candle.close * 3 } : candle);
-    const input = { initialCapital: 10_000, candidates: [{ label: "baseline", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false } as const;
+    const input = { initialCapital: 10_000, candidates: [{ label: "baseline", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false, minTrades: 0 } as const;
     const original = runWalkForwardParameterSelection({ ...input, candles }); const changed = runWalkForwardParameterSelection({ ...input, candles: futureChangedCandles });
     expect(changed.windows[0]?.selection.candidates.map((item) => item.candidate.label)).toEqual(original.windows[0]?.selection.candidates.map((item) => item.candidate.label));
     expect(changed.windows[0]?.selection.candidates.map((item) => item.riskAdjustedScore)).toEqual(original.windows[0]?.selection.candidates.map((item) => item.riskAdjustedScore));
@@ -20,6 +20,12 @@ describe("walk-forward parameter selection", () => {
   });
   it("fails closed by default when only one candidate is available", () => {
     expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "only", strategy: candidate }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 } })).toThrow("unstable parameter selection");
+  });
+  it("fails closed when the training window has no candidates meeting the minimum trade count", () => {
+    expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "only", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false, minTrades: 10_000 })).toThrow("parameter selection produced no best candidate");
+  });
+  it("rejects an invalid minimum trade-count guard", () => {
+    expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ strategy: candidate }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, minTrades: -1 })).toThrow("minTrades must be a non-negative integer");
   });
   it("fails fast when no candidates are provided", () => {
     expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 } })).toThrow("at least one strategy candidate is required");

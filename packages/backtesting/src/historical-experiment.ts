@@ -1,0 +1,139 @@
+import type { HistoricalDataQuery, HistoricalDataSource } from "../../market-data/src/historical-source.js";
+import { auditHistoricalData, assertHistoricalDataQuality, type HistoricalDataQualityReport } from "../../market-data/src/historical-data-quality.js";
+import { optimizeAlphaStrategy, type AlphaStrategyOptimizationOptions } from "./alpha-strategy-optimizer.js";
+import type { Candle } from "./execution-model.js";
+import type { RobustnessThresholds } from "./robustness.js";
+import type { StressScenario } from "./stress-testing.js";
+import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
+import { runWalkForwardPipeline, type WalkForwardPipelineResult } from "./walk-forward-pipeline.js";
+import type { WalkForwardOptions } from "./walk-forward.js";
+import { toBacktestCandles } from "./market-data.js";
+import { evaluateResearchAcceptance, type ResearchAcceptanceReport, type ResearchAcceptanceThresholds } from "./research-acceptance.js";
+import { runMonteCarloTradeRobustness } from "./monte-carlo-trade-robustness.js";
+
+export interface HistoricalExperimentConfig {
+  symbol: string;
+  query: HistoricalDataQuery;
+  initialCapital: number;
+  baselineStrategy: StrategyExecutionConfig;
+  walkForward: WalkForwardOptions;
+  stressScenarios: readonly StressScenario[];
+  robustnessThresholds: RobustnessThresholds;
+  optimization?: AlphaStrategyOptimizationOptions;
+  acceptanceThresholds?: ResearchAcceptanceThresholds;
+}
+
+export interface HistoricalExperimentResult {
+  symbol: string;
+  query: HistoricalDataQuery;
+  dataset: HistoricalDataQualityReport;
+  baseline: WalkForwardPipelineResult;
+  optimized: WalkForwardPipelineResult;
+  acceptance?: ResearchAcceptanceReport;
+}
+
+function validateQuery(config: HistoricalExperimentConfig): void {
+  if (!config.symbol.trim()) throw new Error("symbol is required");
+  if (config.query.symbol !== config.symbol) throw new Error("query.symbol must match config.symbol");
+  if (!config.query.interval.trim()) throw new Error("query.interval is required");
+  if (config.query.startTime !== undefined && !Number.isFinite(config.query.startTime)) throw new Error("query.startTime must be finite");
+  if (config.query.endTime !== undefined && !Number.isFinite(config.query.endTime)) throw new Error("query.endTime must be finite");
+  if (config.query.startTime !== undefined && config.query.endTime !== undefined && config.query.startTime > config.query.endTime) {
+    throw new Error("query.startTime must be less than or equal to query.endTime");
+  }
+}
+
+function runWfo(
+  candles: readonly Candle[],
+  config: HistoricalExperimentConfig,
+  strategyOptimizer?: (trainCandles: readonly Candle[], base: StrategyExecutionConfig) => StrategyExecutionConfig
+): WalkForwardPipelineResult {
+  return runWalkForwardPipeline({
+    candles,
+    initialCapital: config.initialCapital,
+    strategy: config.baselineStrategy,
+    walkForward: config.walkForward,
+    stressScenarios: config.stressScenarios,
+    robustnessThresholds: config.robustnessThresholds,
+    ...(strategyOptimizer ? { strategyOptimizer } : {})
+  });
+}
+
+function evaluateOptimizedAcceptance(
+  optimized: WalkForwardPipelineResult,
+  thresholds: ResearchAcceptanceThresholds,
+  initialCapital: number
+): ResearchAcceptanceReport {
+  const acceptanceEvidence = {
+    outOfSample: optimized.outOfSample,
+    profitableWindowPct: optimized.consistency.profitableWindowPct,
+    stressRobustness: optimized.robustness,
+    ...(optimized.outOfSampleTrades.length > 0
+      ? { monteCarlo: runMonteCarloTradeRobustness({ trades: optimized.outOfSampleTrades, initialCapital }) }
+      : {})
+  };
+
+  return evaluateResearchAcceptance(acceptanceEvidence, thresholds);
+}
+
+export async function runHistoricalExperiment(
+  source: HistoricalDataSource,
+  config: HistoricalExperimentConfig
+): Promise<HistoricalExperimentResult> {
+  validateQuery(config);
+  if (!Number.isFinite(config.initialCapital) || config.initialCapital <= 0) {
+    throw new Error("initialCapital must be a positive finite number");
+  }
+
+  const bars = await source.load(config.query);
+  if (bars.length === 0) throw new Error("historical source returned no candles");
+
+  const dataset = auditHistoricalData(bars, config.query, { requireRangeCoverage: true });
+  assertHistoricalDataQuality(bars, config.query, { requireRangeCoverage: true });
+  const candles = toBacktestCandles(bars);
+
+  const baseline = runWfo(candles, config);
+  const optimized = runWfo(candles, config, (trainCandles, base) =>
+    optimizeAlphaStrategy(trainCandles, base, {
+      ...config.optimization,
+      initialCapital: config.initialCapital
+    }).strategy
+  );
+  const acceptance = config.acceptanceThresholds === undefined
+    ? undefined
+    : evaluateOptimizedAcceptance(optimized, config.acceptanceThresholds, config.initialCapital);
+
+  return { symbol: config.symbol, query: config.query, dataset, baseline, optimized, ...(acceptance ? { acceptance } : {}) };
+}
+
+export interface HistoricalExperimentSummary {
+  symbol: string;
+  barCount: number;
+  rangeStart?: number;
+  rangeEnd?: number;
+  baselineReturnPct: number;
+  optimizedReturnPct: number;
+  baselineMaxDrawdownPct: number;
+  optimizedMaxDrawdownPct: number;
+  baselineTradeCount: number;
+  optimizedTradeCount: number;
+  acceptanceStatus?: ResearchAcceptanceReport["status"];
+}
+
+export function summarizeHistoricalExperiment(result: HistoricalExperimentResult): HistoricalExperimentSummary {
+  const summary: HistoricalExperimentSummary = {
+    symbol: result.symbol,
+    barCount: result.dataset.barCount,
+    baselineReturnPct: result.baseline.outOfSample.totalReturnPct,
+    optimizedReturnPct: result.optimized.outOfSample.totalReturnPct,
+    baselineMaxDrawdownPct: result.baseline.outOfSample.maxDrawdownPct,
+    optimizedMaxDrawdownPct: result.optimized.outOfSample.maxDrawdownPct,
+    baselineTradeCount: result.baseline.outOfSample.tradeCount,
+    optimizedTradeCount: result.optimized.outOfSample.tradeCount
+  };
+
+  if (result.dataset.firstTimestamp !== undefined) summary.rangeStart = result.dataset.firstTimestamp;
+  if (result.dataset.lastTimestamp !== undefined) summary.rangeEnd = result.dataset.lastTimestamp;
+  if (result.acceptance !== undefined) summary.acceptanceStatus = result.acceptance.status;
+  return summary;
+}

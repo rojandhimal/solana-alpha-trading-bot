@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "research:solana": "node dist/apps/research/src/solana-historical-experiment.js"
   },
   "engines": { "node": ">=20" },
   "devDependencies": {

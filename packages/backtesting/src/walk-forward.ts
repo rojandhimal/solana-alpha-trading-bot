@@ -20,19 +20,11 @@ export function createWalkForwardWindows(length: number, options: WalkForwardOpt
 
   const windows: WalkForwardWindow[] = [];
   for (let testStart = trainingBars; testStart + testingBars <= length; testStart += stepBars) {
-    windows.push({
-      trainStart: testStart - trainingBars,
-      trainEnd: testStart,
-      testStart,
-      testEnd: testStart + testingBars
-    });
+    windows.push({ trainStart: testStart - trainingBars, trainEnd: testStart, testStart, testEnd: testStart + testingBars });
   }
   return windows;
 }
 
 export function splitWalkForward<T>(items: readonly T[], window: WalkForwardWindow): { train: T[]; test: T[] } {
-  return {
-    train: items.slice(window.trainStart, window.trainEnd),
-    test: items.slice(window.testStart, window.testEnd)
-  };
+  return { train: items.slice(window.trainStart, window.trainEnd), test: items.slice(window.testStart, window.testEnd) };
 }

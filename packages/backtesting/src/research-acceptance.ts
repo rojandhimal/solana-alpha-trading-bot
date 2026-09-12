@@ -38,7 +38,7 @@ function validateThresholds(thresholds: ResearchAcceptanceThresholds): void {
   if (
     !valid(thresholds.minOosReturnPct) ||
     !valid(thresholds.maxOosDrawdownPct) ||
-    !valid(thresholds.minOosTradeCount) ||
+    !Number.isInteger(thresholds.minOosTradeCount) ||
     !valid(thresholds.minOosProfitFactor) ||
     !valid(thresholds.minOosExpectancy) ||
     !valid(thresholds.minProfitableWindowPct) ||
@@ -46,6 +46,7 @@ function validateThresholds(thresholds: ResearchAcceptanceThresholds): void {
     !valid(thresholds.maxMonteCarlo95DrawdownPct) ||
     thresholds.maxOosDrawdownPct < 0 ||
     thresholds.minOosTradeCount < 0 ||
+    thresholds.minOosProfitFactor < 0 ||
     thresholds.minProfitableWindowPct < 0 ||
     thresholds.minProfitableWindowPct > 100 ||
     thresholds.minPassingStressScenarioRatePct < 0 ||

@@ -18,11 +18,18 @@ const envSchema = z.object({
   MAX_EXPECTED_SLIPPAGE_PERCENT: z.coerce.number().min(0).max(100).default(1),
   MIN_SIGNAL_SCORE: z.coerce.number().min(0).max(100).default(80),
   TRADING_MODE: z.enum(["PAPER", "LIVE"]).default("PAPER"),
-  SOLANA_PRIVATE_KEY: z.string().optional()
+  ENABLE_LIVE_TRADING: z.coerce.boolean().default(false),
+  SOLANA_PRIVATE_KEY: z.string().min(1).optional()
+}).superRefine((value, ctx) => {
+  if (value.TRADING_MODE === "LIVE" && !value.ENABLE_LIVE_TRADING) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "LIVE trading requires explicit ENABLE_LIVE_TRADING=true" });
+  }
+  if (value.TRADING_MODE === "LIVE" && !value.SOLANA_PRIVATE_KEY) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SOLANA_PRIVATE_KEY"], message: "LIVE trading requires a signing key supplied through the secret manager/environment" });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
-
 if (!parsed.success) {
   console.error("Invalid environment configuration:");
   console.error(parsed.error.format());

@@ -19,7 +19,7 @@ describe("walk-forward parameter selection", () => {
     expect(changed.windows[0]?.selection.best?.candidate.label).toBe(original.windows[0]?.selection.best?.candidate.label);
   });
   it("fails closed by default when only one candidate is available", () => {
-    expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "only", strategy: candidate }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 } })).toThrow("unstable parameter selection");
+    expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "only", strategy: candidate }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, minTrades: 0 })).toThrow("unstable parameter selection");
   });
   it("fails closed when the training window has no candidates meeting the minimum trade count", () => {
     expect(() => runWalkForwardParameterSelection({ candles, initialCapital: 10_000, candidates: [{ label: "only", strategy: candidate }, { label: "slower", strategy: { ...candidate, fastPeriod: 8, slowPeriod: 16 } }], quantity: 1, stressScenarios: [], robustnessThresholds: thresholds, walkForward: { trainingBars: 30, testingBars: 15 }, requireStableSelection: false, minTrades: 10_000 })).toThrow("parameter selection produced no best candidate");

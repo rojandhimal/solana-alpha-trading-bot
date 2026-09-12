@@ -3,12 +3,13 @@ import type { AlphaStrategyConfig } from "./alpha-strategy.js";
 import type { StressScenario } from "./stress-testing.js";
 
 export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
+export const SOL_GECKOTERMINAL_POOL_ADDRESS = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
 export const SOL_RESEARCH_INTERVAL = "1H";
 
 // Fixed research period for reproducibility. This is configuration only; it does not
 // imply that the strategy is profitable or suitable for live trading.
 export const SOL_RESEARCH_START_MS = Date.parse("2025-01-01T00:00:00.000Z");
-export const SOL_RESEARCH_END_MS = Date.parse("2025-12-31T23:59:59.999Z");
+export const SOL_RESEARCH_END_MS = Date.parse("2025-12-31T23:00:00.000Z");
 
 export const SOL_STRESS_SCENARIOS: readonly StressScenario[] = [
   "BASE",

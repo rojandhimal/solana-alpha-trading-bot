@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
 
-const klineSchema = z.array(z.unknown()).min(6);
+const klineSchema = z.array(z.unknown()).min(8);
 const DEFAULT_BASE_URL = "https://api.binance.com";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 250;
 const DEFAULT_PAGE_LIMIT = 1000;
 const DEFAULT_USER_AGENT = "solana-alpha-trading-bot/0.1";
+const HOUR_MS = 60 * 60 * 1000;
 
 export interface BinanceOhlcvSourceOptions {
   symbol: string;
@@ -49,7 +50,9 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
   }
 
   async load(query: HistoricalDataQuery): Promise<readonly OhlcvBar[]> {
-    if (!query.symbol.trim()) throw new Error("symbol is required");
+    const querySymbol = query.symbol.trim().toUpperCase();
+    if (!querySymbol) throw new Error("symbol is required");
+    if (querySymbol !== this.symbol) throw new Error("symbol must match configured Binance symbol");
     if (!query.interval.trim()) throw new Error("interval is required");
     if (query.startTime !== undefined && query.endTime !== undefined && query.startTime > query.endTime) {
       throw new Error("startTime must be less than or equal to endTime");
@@ -83,7 +86,7 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
       if (page.length < this.pageLimit) break;
       const lastTimestamp = page[page.length - 1]?.timestamp;
       if (lastTimestamp === undefined) break;
-      const nextCursor = lastTimestamp + 60 * 60 * 1000;
+      const nextCursor = lastTimestamp + HOUR_MS;
       if (cursor !== undefined && nextCursor <= cursor) break;
       if (endTime !== undefined && nextCursor > endTime) break;
       cursor = nextCursor;

@@ -16,6 +16,7 @@ env:
   SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
   DEXSCREENER_BASE_URL: https://api.dexscreener.com
   TRADING_MODE: PAPER
+  ENABLE_LIVE_TRADING: false
 
 jobs:
   quality:

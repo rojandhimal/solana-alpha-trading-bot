@@ -114,7 +114,9 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
       if (response.ok) return response;
 
       if ((response.status !== 429 && response.status < 500) || attempt >= this.maxRetries) {
-        throw new Error(`GeckoTerminal OHLCV returned HTTP ${response.status}`);
+        const body = await readErrorBody(response);
+        const detail = body.length > 0 ? `: ${body}` : "";
+        throw new Error(`GeckoTerminal OHLCV returned HTTP ${response.status}${detail}`);
       }
 
       const retryAfterHeader = response.headers.get("retry-after");
@@ -124,6 +126,15 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
         : this.retryBaseDelayMs * 2 ** attempt;
       await this.sleepImpl(delayMs);
     }
+  }
+}
+
+async function readErrorBody(response: Response): Promise<string> {
+  try {
+    const text = (await response.text()).trim();
+    return text.slice(0, 500).replace(/\s+/g, " ");
+  } catch {
+    return "";
   }
 }
 

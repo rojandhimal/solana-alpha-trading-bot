@@ -1,5 +1,10 @@
 import type { HistoricalDataQuery, HistoricalDataSource } from "../../market-data/src/historical-source.js";
-import { auditHistoricalData, assertHistoricalDataQuality, type HistoricalDataQualityReport } from "../../market-data/src/historical-data-quality.js";
+import {
+  auditHistoricalData,
+  assertHistoricalDataQuality,
+  type HistoricalDataQualityOptions,
+  type HistoricalDataQualityReport
+} from "../../market-data/src/historical-data-quality.js";
 import { optimizeAlphaStrategy, type AlphaStrategyOptimizationOptions } from "./alpha-strategy-optimizer.js";
 import type { Candle } from "./execution-model.js";
 import type { RobustnessThresholds } from "./robustness.js";
@@ -17,6 +22,7 @@ export interface HistoricalExperimentConfig {
   walkForward: WalkForwardOptions;
   stressScenarios: readonly StressScenario[];
   robustnessThresholds: RobustnessThresholds;
+  dataQuality?: HistoricalDataQualityOptions;
   optimization?: AlphaStrategyOptimizationOptions;
 }
 
@@ -67,8 +73,12 @@ export async function runHistoricalExperiment(
   const bars = await source.load(config.query);
   if (bars.length === 0) throw new Error("historical source returned no candles");
 
-  const dataset = auditHistoricalData(bars, config.query, { requireRangeCoverage: true });
-  assertHistoricalDataQuality(bars, config.query, { requireRangeCoverage: true });
+  const qualityOptions: HistoricalDataQualityOptions = {
+    ...(config.dataQuality ?? {}),
+    requireRangeCoverage: true
+  };
+  const dataset = auditHistoricalData(bars, config.query, qualityOptions);
+  assertHistoricalDataQuality(bars, config.query, qualityOptions);
   const candles = toBacktestCandles(bars);
 
   const baseline = runWfo(candles, config);

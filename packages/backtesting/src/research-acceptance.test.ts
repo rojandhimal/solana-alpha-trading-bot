@@ -33,7 +33,8 @@ describe("research acceptance gates", () => {
   });
 
   it("fails closed as inconclusive when required evidence is missing", () => {
-    const result = evaluateResearchAcceptance({ ...evidence, monteCarlo: undefined }, thresholds);
+    const { monteCarlo: _monteCarlo, ...evidenceWithoutMonteCarlo } = evidence;
+    const result = evaluateResearchAcceptance(evidenceWithoutMonteCarlo, thresholds);
     expect(result.status).toBe("INCONCLUSIVE");
     expect(result.failures).toContain("MONTE_CARLO_EVIDENCE_MISSING");
   });

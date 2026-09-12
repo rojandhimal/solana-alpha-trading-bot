@@ -3,10 +3,17 @@ import { runBacktestPipeline, type BacktestPipelineInput, type BacktestPipelineR
 import { createWalkForwardWindows, splitWalkForward, type WalkForwardOptions, type WalkForwardWindow } from "./walk-forward.js";
 import { evaluateWalkForwardRobustness, type RobustnessReport } from "./robustness.js";
 import type { PerformanceMetrics } from "./performance-metrics.js";
+import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
+
+export type WalkForwardStrategyOptimizer = (
+  trainCandles: readonly Candle[],
+  baseStrategy: StrategyExecutionConfig
+) => StrategyExecutionConfig;
 
 export interface WalkForwardPipelineWindow extends WalkForwardWindow {
   train: BacktestPipelineResult;
   test: BacktestPipelineResult;
+  selectedStrategy?: StrategyExecutionConfig;
 }
 
 export interface WalkForwardConsistency {
@@ -29,13 +36,10 @@ export interface WalkForwardPipelineResult {
 export interface WalkForwardPipelineInput extends Omit<BacktestPipelineInput, "candles"> {
   candles: readonly Candle[];
   walkForward: WalkForwardOptions;
+  strategyOptimizer?: WalkForwardStrategyOptimizer;
 }
 
-function fillsForRange(
-  fills: readonly ExecutionFill[],
-  start: number,
-  end: number
-): ExecutionFill[] {
+function fillsForRange(fills: readonly ExecutionFill[], start: number, end: number): ExecutionFill[] {
   return fills
     .filter(
       (fill) =>
@@ -158,20 +162,22 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
 }
 
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
-  const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
-    const { train, test } = splitWalkForward(input.candles, window);
+  const { candles: inputCandles, walkForward, strategyOptimizer, strategy: baseStrategy, ...pipelineConfig } = input;
+  const windows = createWalkForwardWindows(inputCandles.length, walkForward).map((window) => {
+    const selectedStrategy = baseStrategy && strategyOptimizer
+      ? strategyOptimizer(inputCandles.slice(window.trainStart, window.trainEnd), baseStrategy)
+      : baseStrategy;
+    const strategyConfig = selectedStrategy === undefined ? {} : { strategy: selectedStrategy };
+    const { train, test } = splitWalkForward(inputCandles, window);
     const trainInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train }
-      : { ...input, candles: train };
+      ? { ...pipelineConfig, fills: fillsForRange(input.fills, window.trainStart, window.trainEnd), candles: train, ...strategyConfig }
+      : { ...pipelineConfig, candles: train, ...strategyConfig };
     const testInput: BacktestPipelineInput = input.fills
-      ? { ...input, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test }
-      : { ...input, candles: test };
+      ? { ...pipelineConfig, fills: fillsForRange(input.fills, window.testStart, window.testEnd), candles: test, ...strategyConfig }
+      : { ...pipelineConfig, candles: test, ...strategyConfig };
 
-    return {
-      ...window,
-      train: runBacktestPipeline(trainInput),
-      test: runBacktestPipeline(testInput)
-    };
+    const result = { ...window, train: runBacktestPipeline(trainInput), test: runBacktestPipeline(testInput) };
+    return selectedStrategy === undefined ? result : { ...result, selectedStrategy };
   });
 
   const outOfSample = aggregateWalkForwardOutOfSampleMetrics(windows);

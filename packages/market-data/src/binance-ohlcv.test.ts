@@ -56,7 +56,7 @@ describe("BinanceOhlcvSource", () => {
     });
 
     expect(calls).toHaveLength(2);
-    expect(calls[1]?.searchParams.get("startTime")).toBe("1700003600000");
+    expect(calls[1]?.searchParams.get("startTime")).toBe("1700007200000");
     expect(bars.map((bar) => bar.timestamp)).toEqual([1_700_000_000_000, 1_700_003_600_000, 1_700_007_200_000]);
   });
 

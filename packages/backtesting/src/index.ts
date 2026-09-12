@@ -18,3 +18,5 @@ export * from "./walk-forward-pipeline.js";
 export * from "./historical-backtest-runner.js";
 export * from "./historical-experiment.js";
 export * from "./solana-experiment-config.js";
+export * from "./parameter-stability.js";
+export * from "./walk-forward-parameter-selection.js";

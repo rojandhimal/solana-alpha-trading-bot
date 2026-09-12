@@ -9,7 +9,7 @@ import type { PerformanceMetrics } from "./performance-metrics.js";
 export interface StrategyParameterCandidate { strategy: AlphaStrategyConfig; label?: string; }
 export interface ParameterStabilityResult { candidate: StrategyParameterCandidate; backtest: BacktestPipelineResult; riskAdjustedScore: number; rank: number; }
 export interface ParameterStabilityReport { candidates: ParameterStabilityResult[]; best?: ParameterStabilityResult; scoreSpreadPct: number; stable: boolean; }
-export interface ParameterStabilityInput { candles: readonly Candle[]; initialCapital: number; candidates: readonly StrategyParameterCandidate[]; quantity: number; execution?: StrategyExecutionConfig["execution"]; stressScenarios: readonly StressScenario[]; robustnessThresholds: RobustnessThresholds; stabilitySpreadThresholdPct?: number; }
+export interface ParameterStabilityInput { candles: readonly Candle[]; initialCapital: number; candidates: readonly StrategyParameterCandidate[]; quantity: number; execution?: StrategyExecutionConfig["execution"]; stressScenarios: readonly StressScenario[]; robustnessThresholds: RobustnessThresholds; stabilitySpreadThresholdPct?: number; minTrades?: number; }
 
 export function calculateParameterStabilityScore(metrics: PerformanceMetrics, initialCapital: number): number {
   if (!Number.isFinite(initialCapital) || initialCapital <= 0) throw new Error("initialCapital must be positive and finite");
@@ -21,14 +21,16 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
   if (input.candidates.length === 0) throw new Error("at least one strategy candidate is required");
   const spreadThreshold = input.stabilitySpreadThresholdPct ?? 10;
   if (!Number.isFinite(spreadThreshold) || spreadThreshold < 0) throw new Error("stabilitySpreadThresholdPct must be non-negative");
+  const minTrades = input.minTrades ?? 0;
+  if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
   const candidates = input.candidates.map((candidate) => {
     const strategyConfig = input.execution === undefined ? { quantity: input.quantity, strategy: candidate.strategy } : { quantity: input.quantity, strategy: candidate.strategy, execution: input.execution };
     const backtest = runBacktestPipeline({ candles: input.candles, initialCapital: input.initialCapital, strategy: strategyConfig, stressScenarios: input.stressScenarios, robustnessThresholds: input.robustnessThresholds });
     return { candidate, backtest, riskAdjustedScore: calculateParameterStabilityScore(backtest.metrics, input.initialCapital), rank: 0 };
-  }).sort((a, b) => b.riskAdjustedScore - a.riskAdjustedScore).map((result, index) => ({ ...result, rank: index + 1 }));
+  }).filter((result) => result.backtest.metrics.tradeCount >= minTrades).sort((a, b) => b.riskAdjustedScore - a.riskAdjustedScore).map((result, index) => ({ ...result, rank: index + 1 }));
   const best = candidates[0];
   const scores = candidates.map((candidate) => candidate.riskAdjustedScore);
-  const minScore = Math.min(...scores);
+  const minScore = scores.length > 0 ? Math.min(...scores) : 0;
   const scoreSpreadPct = best === undefined || best.riskAdjustedScore === 0 ? 0 : (Math.abs(best.riskAdjustedScore - minScore) / Math.abs(best.riskAdjustedScore)) * 100;
   if (best === undefined) return { candidates, scoreSpreadPct, stable: false };
   return { candidates, best, scoreSpreadPct, stable: candidates.length >= 2 && best.riskAdjustedScore > 0 && scoreSpreadPct <= spreadThreshold };

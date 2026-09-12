@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { GeckoTerminalOhlcvSource } from "./geckoterminal-ohlcv.js";
 
+const TEST_POOL = "test_pool";
+
 function response(rows: readonly number[][], status = 200): Response {
   return new Response(JSON.stringify({
     data: {
-      id: "solana_test_pool",
+      id: TEST_POOL,
       type: "ohlcv",
       attributes: { ohlcv_list: rows }
     }
@@ -12,31 +14,35 @@ function response(rows: readonly number[][], status = 200): Response {
 }
 
 describe("GeckoTerminalOhlcvSource", () => {
-  it("requests the correct timeframe and aggregate for 1H", async () => {
+  it("requests the pool OHLCV endpoint with the correct timeframe and aggregate", async () => {
     const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {
       const url = new URL(String(input));
-      expect(url.pathname).toContain("/networks/solana/tokens/SOL/ohlcv/hour");
+      expect(url.pathname).toContain(`/networks/solana/pools/${TEST_POOL}/ohlcv/hour`);
       expect(url.searchParams.get("aggregate")).toBe("1");
       expect(url.searchParams.get("limit")).toBe("1000");
       return response([[1_700_000_000, 100, 101, 99, 100.5, 10]]);
     });
 
-    const source = new GeckoTerminalOhlcvSource({ fetchImpl });
+    const source = new GeckoTerminalOhlcvSource({ poolAddress: TEST_POOL, fetchImpl });
     const bars = await source.load({ symbol: "SOL", interval: "1H" });
 
     expect(bars).toEqual([{ timestamp: 1_700_000_000_000, open: 100, high: 101, low: 99, close: 100.5, volume: 10 }]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("requires a pool address", () => {
+    expect(() => new GeckoTerminalOhlcvSource({ poolAddress: "" })).toThrow("poolAddress is required");
+  });
+
   it("passes minute aggregates for 5M and 15M", async () => {
     for (const [interval, aggregate] of [["5M", "5"], ["15M", "15"]] as const) {
       const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {
         const url = new URL(String(input));
-        expect(url.pathname).toContain("/ohlcv/minute");
+        expect(url.pathname).toContain(`/pools/${TEST_POOL}/ohlcv/minute`);
         expect(url.searchParams.get("aggregate")).toBe(aggregate);
         return response([[1_700_000_000, 100, 101, 99, 100.5, 10]]);
       });
-      await new GeckoTerminalOhlcvSource({ fetchImpl }).load({ symbol: "SOL", interval });
+      await new GeckoTerminalOhlcvSource({ poolAddress: TEST_POOL, fetchImpl }).load({ symbol: "SOL", interval });
     }
   });
 
@@ -50,7 +56,7 @@ describe("GeckoTerminalOhlcvSource", () => {
       return response([[1_700_000_000, 100, 101, 99, 100, 10]]);
     });
 
-    const source = new GeckoTerminalOhlcvSource({ fetchImpl, pageLimit: 2 });
+    const source = new GeckoTerminalOhlcvSource({ poolAddress: TEST_POOL, fetchImpl, pageLimit: 2 });
     const bars = await source.load({
       symbol: "SOL",
       interval: "1H",
@@ -74,7 +80,7 @@ describe("GeckoTerminalOhlcvSource", () => {
       return response([[1_700_000_000, 100, 101, 99, 100, 1]]);
     });
 
-    const bars = await new GeckoTerminalOhlcvSource({ fetchImpl, sleepImpl: sleep, retryBaseDelayMs: 10 }).load({ symbol: "SOL", interval: "1H" });
+    const bars = await new GeckoTerminalOhlcvSource({ poolAddress: TEST_POOL, fetchImpl, sleepImpl: sleep, retryBaseDelayMs: 10 }).load({ symbol: "SOL", interval: "1H" });
 
     expect(bars).toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
@@ -84,6 +90,6 @@ describe("GeckoTerminalOhlcvSource", () => {
 
   it("rejects invalid candle bounds", async () => {
     const fetchImpl = vi.fn(async () => response([[1_700_000_000, 100, 99, 98, 100, 1]]));
-    await expect(new GeckoTerminalOhlcvSource({ fetchImpl }).load({ symbol: "SOL", interval: "1H" })).rejects.toThrow("invalid candle bounds");
+    await expect(new GeckoTerminalOhlcvSource({ poolAddress: TEST_POOL, fetchImpl }).load({ symbol: "SOL", interval: "1H" })).rejects.toThrow("invalid candle bounds");
   });
 });

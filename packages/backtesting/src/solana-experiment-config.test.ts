@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SOLANA_EXPERIMENT_CONFIG, SOL_BASELINE_STRATEGY } from "./solana-experiment-config.js";
+import {
+  SOLANA_EXPERIMENT_CONFIG,
+  SOL_BASELINE_STRATEGY,
+  SOL_GECKOTERMINAL_POOL_ADDRESS
+} from "./solana-experiment-config.js";
 
 describe("SOLANA_EXPERIMENT_CONFIG", () => {
   it("uses a deterministic SOL identity and historical query", () => {
@@ -10,8 +14,8 @@ describe("SOLANA_EXPERIMENT_CONFIG", () => {
     expect(SOLANA_EXPERIMENT_CONFIG.query.endTime).toBe(1767222000000);
   });
 
-  it("keeps the reproducible SOL pool identity", () => {
-    expect(SOLANA_EXPERIMENT_CONFIG.symbol).toBe("So11111111111111111111111111111111111111112");
+  it("pins the historical GeckoTerminal pool identity", () => {
+    expect(SOL_GECKOTERMINAL_POOL_ADDRESS).toBe("58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2");
   });
 
   it("keeps research capital, walk-forward, strategy and stress settings deterministic", () => {

@@ -16,6 +16,7 @@ export * from "./robustness.js";
 export * from "./statistical-robustness.js";
 export * from "./parameter-stability.js";
 export * from "./pre-dashboard-validation.js";
+export * from "./pre-dashboard-gates.js";
 export * from "./backtest-pipeline.js";
 export * from "./market-data.js";
 export * from "./market-data-source-adapter.js";

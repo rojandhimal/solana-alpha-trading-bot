@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "research:solana": "node dist/apps/research/src/solana-historical-experiment.js"
+    "research:solana": "node dist/apps/research/src/solana-historical-experiment.js",
+    "research:solana:binance": "node dist/apps/research/src/solana-binance-benchmark.js"
   },
   "engines": { "node": ">=20" },
   "devDependencies": {

@@ -21,12 +21,10 @@ const envSchema = z.object({
   ENABLE_LIVE_TRADING: z.coerce.boolean().default(false),
   SOLANA_PRIVATE_KEY: z.string().min(1).optional()
 }).superRefine((value, ctx) => {
-  if (value.TRADING_MODE === "LIVE" && !value.ENABLE_LIVE_TRADING) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "LIVE trading requires explicit ENABLE_LIVE_TRADING=true" });
-  }
-  if (value.TRADING_MODE === "LIVE" && !value.SOLANA_PRIVATE_KEY) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SOLANA_PRIVATE_KEY"], message: "LIVE trading requires a signing key supplied through the secret manager/environment" });
-  }
+  if (value.TRADING_MODE === "LIVE" && !value.ENABLE_LIVE_TRADING) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "LIVE trading requires explicit ENABLE_LIVE_TRADING=true" });
+  if (value.TRADING_MODE === "LIVE" && !value.SOLANA_PRIVATE_KEY) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SOLANA_PRIVATE_KEY"], message: "LIVE trading requires a signing key supplied through the secret manager/environment" });
+  if (value.TRADING_MODE === "PAPER" && value.SOLANA_PRIVATE_KEY) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["SOLANA_PRIVATE_KEY"], message: "Do not load signing keys in PAPER mode" });
+  if (value.ENABLE_LIVE_TRADING && value.TRADING_MODE !== "LIVE") ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "ENABLE_LIVE_TRADING=true is only valid with TRADING_MODE=LIVE" });
 });
 
 const parsed = envSchema.safeParse(process.env);

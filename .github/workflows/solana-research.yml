@@ -17,7 +17,7 @@ env:
   TRADING_MODE: PAPER
 
 jobs:
-  historical-experiment:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -25,32 +25,76 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: feature/walk-forward-integration
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
-
+          cache: npm
       - name: Install dependencies
         run: npm install
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Test
         run: npm test
-
       - name: Build
         run: npm run build
 
-      - name: Run SOL 2025 historical experiment
+  gecko-dex-diagnostic:
+    needs: validate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Run SOL DEX historical experiment
         run: npm run research:solana
         env:
           SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
-
-      - name: Upload research report
+      - name: Upload DEX diagnostic
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: solana-historical-experiment
+          name: solana-geckoterminal-diagnostic
           path: artifacts/solana-historical-experiment.json
+          if-no-files-found: ignore
+
+  binance-benchmark:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Run SOL 2025 Binance benchmark
+        run: npm run research:solana:binance
+        env:
+          SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
+      - name: Upload Binance benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-binance-historical-experiment
+          path: artifacts/solana-binance-historical-experiment.json
           if-no-files-found: error

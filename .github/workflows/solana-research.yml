@@ -2,6 +2,8 @@ name: SOL Historical Research
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['feature/walk-forward-integration']
 
 permissions:
   contents: read

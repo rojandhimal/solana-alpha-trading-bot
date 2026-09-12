@@ -14,6 +14,7 @@ export * from "./trade-attribution.js";
 export * from "./performance-metrics.js";
 export * from "./robustness.js";
 export * from "./statistical-robustness.js";
+export * from "./pre-dashboard-validation.js";
 export * from "./backtest-pipeline.js";
 export * from "./market-data.js";
 export * from "./market-data-source-adapter.js";

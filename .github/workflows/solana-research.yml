@@ -1,0 +1,55 @@
+name: SOL Historical Research
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  REDIS_URL: redis://localhost:6379
+  SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+  DEXSCREENER_BASE_URL: https://api.dexscreener.com
+  TRADING_MODE: PAPER
+
+jobs:
+  historical-experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Run SOL 2025 historical experiment
+        run: npm run research:solana
+        env:
+          SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
+
+      - name: Upload research report
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-historical-experiment
+          path: artifacts/solana-historical-experiment.json
+          if-no-files-found: error

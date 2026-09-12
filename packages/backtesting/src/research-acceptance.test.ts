@@ -53,5 +53,7 @@ describe("research acceptance gates", () => {
 
   it("rejects invalid thresholds", () => {
     expect(() => evaluateResearchAcceptance(evidence, { ...thresholds, maxOosDrawdownPct: -1 })).toThrow("invalid research acceptance thresholds");
+    expect(() => evaluateResearchAcceptance(evidence, { ...thresholds, minOosTradeCount: 20.5 })).toThrow("invalid research acceptance thresholds");
+    expect(() => evaluateResearchAcceptance(evidence, { ...thresholds, minOosProfitFactor: -0.1 })).toThrow("invalid research acceptance thresholds");
   });
 });

@@ -58,7 +58,6 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
   let compoundedEquity = initialCapital;
   let peakEquity = initialCapital;
   let maxDrawdownPct = 0;
-
   for (const window of windows) {
     const windowInitialCapital = window.test.baseline.initialCapital;
     if (!Number.isFinite(windowInitialCapital) || windowInitialCapital <= 0) continue;
@@ -71,7 +70,6 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
     }
     compoundedEquity *= window.test.baseline.finalEquity / windowInitialCapital;
   }
-
   const netProfit = compoundedEquity - initialCapital;
   const totalReturnPct = initialCapital === 0 ? 0 : (netProfit / initialCapital) * 100;
   let winningTrades = 0;
@@ -92,6 +90,12 @@ function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow
   const averageWin = winningTrades === 0 ? 0 : grossProfit / winningTrades;
   const averageLoss = losingTrades === 0 ? 0 : grossLoss / losingTrades;
   return { totalReturnPct, netProfit, maxDrawdownPct, tradeCount, winRatePct, profitFactor, expectancy: tradeCount === 0 ? 0 : netProfit / tradeCount, averageWin, averageLoss };
+}
+
+export function aggregateWalkForwardOutOfSampleMetrics(
+  windows: readonly { test: BacktestPipelineResult }[]
+): PerformanceMetrics {
+  return aggregateOutOfSampleMetrics(windows as readonly WalkForwardPipelineWindow[]);
 }
 
 function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): WalkForwardConsistency {

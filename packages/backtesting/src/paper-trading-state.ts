@@ -5,14 +5,12 @@ import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 import { generateStrategyFills } from "./strategy-execution-adapter.js";
 import type { PaperTradingRiskLimits } from "./paper-trading-session.js";
 
-export interface PaperTradingSnapshot {
-  candleCount: number;
-  fillCount: number;
-  accounting: PortfolioAccountingResult;
-  risk: { halted: boolean; reasons: string[]; maxObservedDrawdownPct: number; maxObservedPositionNotionalPct: number };
-}
+export interface PaperTradingSnapshot { candleCount: number; fillCount: number; accounting: PortfolioAccountingResult; risk: { halted: boolean; reasons: string[]; maxObservedDrawdownPct: number; maxObservedPositionNotionalPct: number }; }
 export interface PaperTradingStateConfig { initialCapital: number; execution: StrategyExecutionConfig; riskLimits?: Partial<PaperTradingRiskLimits>; allowShort?: boolean; }
 
+function accountingFor(candles: readonly StrategyCandle[], fills: readonly ExecutionFill[], initialCapital: number, allowShort: boolean | undefined): PortfolioAccountingResult {
+  return allowShort === undefined ? accountFills(candles, fills, initialCapital) : accountFills(candles, fills, initialCapital, { allowShort });
+}
 function riskFor(accounting: PortfolioAccountingResult, limits: PaperTradingRiskLimits) {
   const maxDrawdownPct = Math.max(...accounting.equityCurve.map((p) => p.drawdownPct), 0);
   const maxPositionNotionalPct = Math.max(...accounting.equityCurve.map((p) => Math.abs(p.positionValue) / accounting.initialCapital * 100), 0);
@@ -49,29 +47,26 @@ export class PaperTradingState {
     const proposed = generateStrategyFills(this.candles, this.config.execution);
     const newFills = proposed.slice(this.fills.length);
     let candidateFills = newFills;
-    const before = accountFills(this.candles, this.fills, this.config.initialCapital, { allowShort: this.config.allowShort });
+    const before = accountingFor(this.candles, this.fills, this.config.initialCapital, this.config.allowShort);
     const beforePosition = before.equityCurve.at(-1)?.positionQuantity ?? 0;
 
     if (this.halted) {
       candidateFills = newFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
     } else if (candidateFills.length > 0) {
-      const trial = accountFills(this.candles, [...this.fills, ...candidateFills], this.config.initialCapital, { allowShort: this.config.allowShort });
+      const trial = accountingFor(this.candles, [...this.fills, ...candidateFills], this.config.initialCapital, this.config.allowShort);
       const trialPositionPct = Math.abs(trial.equityCurve.at(-1)?.positionValue ?? 0) / this.config.initialCapital * 100;
-      if (trialPositionPct > this.riskLimits.maxPositionNotionalPct) {
-        // Preserve a close/reduce operation but never open exposure above the configured limit.
-        candidateFills = candidateFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
-      }
+      if (trialPositionPct > this.riskLimits.maxPositionNotionalPct) candidateFills = candidateFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
     }
 
     this.fills.push(...candidateFills);
-    const accounting = accountFills(this.candles, this.fills, this.config.initialCapital, { allowShort: this.config.allowShort });
+    const accounting = accountingFor(this.candles, this.fills, this.config.initialCapital, this.config.allowShort);
     const risk = riskFor(accounting, this.riskLimits);
     this.halted = this.halted || risk.halted;
     return { candleCount: this.candles.length, fillCount: this.fills.length, accounting, risk: { ...risk, halted: this.halted } };
   }
 
   snapshot(): PaperTradingSnapshot {
-    const accounting = accountFills(this.candles, this.fills, this.config.initialCapital, { allowShort: this.config.allowShort });
+    const accounting = accountingFor(this.candles, this.fills, this.config.initialCapital, this.config.allowShort);
     const risk = riskFor(accounting, this.riskLimits);
     return { candleCount: this.candles.length, fillCount: this.fills.length, accounting, risk: { ...risk, halted: this.halted || risk.halted } };
   }

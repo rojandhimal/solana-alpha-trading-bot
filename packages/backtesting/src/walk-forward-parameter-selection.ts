@@ -14,15 +14,17 @@ export interface WalkForwardParameterSelectionResult { windows: WalkForwardParam
 export interface WalkForwardParameterSelectionInput {
   candles: readonly Candle[]; initialCapital: number; candidates: readonly StrategyParameterCandidate[]; quantity: number;
   execution?: StrategyExecutionConfig["execution"]; stressScenarios: readonly StressScenario[]; robustnessThresholds: RobustnessThresholds;
-  walkForward: WalkForwardOptions; stabilitySpreadThresholdPct?: number; requireStableSelection?: boolean;
+  walkForward: WalkForwardOptions; stabilitySpreadThresholdPct?: number; requireStableSelection?: boolean; minTrades?: number;
 }
 
 export function runWalkForwardParameterSelection(input: WalkForwardParameterSelectionInput): WalkForwardParameterSelectionResult {
   if (input.candidates.length === 0) throw new Error("at least one strategy candidate is required");
   const requireStableSelection = input.requireStableSelection ?? true;
+  const minTrades = input.minTrades ?? 3;
+  if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
   const windows = createWalkForwardWindows(input.candles.length, input.walkForward).map((window) => {
     const { train, test: testCandles } = splitWalkForward(input.candles, window);
-    const stabilityInput = { candles: train, initialCapital: input.initialCapital, candidates: input.candidates, quantity: input.quantity, stressScenarios: input.stressScenarios, robustnessThresholds: input.robustnessThresholds };
+    const stabilityInput = { candles: train, initialCapital: input.initialCapital, candidates: input.candidates, quantity: input.quantity, stressScenarios: input.stressScenarios, robustnessThresholds: input.robustnessThresholds, minTrades };
     const stabilityInputWithExecution = input.execution === undefined
       ? (input.stabilitySpreadThresholdPct === undefined ? stabilityInput : { ...stabilityInput, stabilitySpreadThresholdPct: input.stabilitySpreadThresholdPct })
       : (input.stabilitySpreadThresholdPct === undefined ? { ...stabilityInput, execution: input.execution } : { ...stabilityInput, execution: input.execution, stabilitySpreadThresholdPct: input.stabilitySpreadThresholdPct });

@@ -8,6 +8,8 @@ import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 import { runWalkForwardPipeline, type WalkForwardPipelineResult } from "./walk-forward-pipeline.js";
 import type { WalkForwardOptions } from "./walk-forward.js";
 import { toBacktestCandles } from "./market-data.js";
+import { evaluateResearchAcceptance, type ResearchAcceptanceReport, type ResearchAcceptanceThresholds } from "./research-acceptance.js";
+import { runMonteCarloTradeRobustness } from "./monte-carlo-trade-robustness.js";
 
 export interface HistoricalExperimentConfig {
   symbol: string;
@@ -18,6 +20,7 @@ export interface HistoricalExperimentConfig {
   stressScenarios: readonly StressScenario[];
   robustnessThresholds: RobustnessThresholds;
   optimization?: AlphaStrategyOptimizationOptions;
+  acceptanceThresholds?: ResearchAcceptanceThresholds;
 }
 
 export interface HistoricalExperimentResult {
@@ -26,6 +29,7 @@ export interface HistoricalExperimentResult {
   dataset: HistoricalDataQualityReport;
   baseline: WalkForwardPipelineResult;
   optimized: WalkForwardPipelineResult;
+  acceptance?: ResearchAcceptanceReport;
 }
 
 function validateQuery(config: HistoricalExperimentConfig): void {
@@ -55,6 +59,26 @@ function runWfo(
   });
 }
 
+function evaluateOptimizedAcceptance(
+  optimized: WalkForwardPipelineResult,
+  thresholds: ResearchAcceptanceThresholds,
+  initialCapital: number
+): ResearchAcceptanceReport {
+  const monteCarlo = optimized.outOfSampleTrades.length > 0
+    ? runMonteCarloTradeRobustness({ trades: optimized.outOfSampleTrades, initialCapital })
+    : undefined;
+
+  return evaluateResearchAcceptance(
+    {
+      outOfSample: optimized.outOfSample,
+      profitableWindowPct: optimized.consistency.profitableWindowPct,
+      stressRobustness: optimized.robustness,
+      monteCarlo
+    },
+    thresholds
+  );
+}
+
 export async function runHistoricalExperiment(
   source: HistoricalDataSource,
   config: HistoricalExperimentConfig
@@ -78,8 +102,11 @@ export async function runHistoricalExperiment(
       initialCapital: config.initialCapital
     }).strategy
   );
+  const acceptance = config.acceptanceThresholds === undefined
+    ? undefined
+    : evaluateOptimizedAcceptance(optimized, config.acceptanceThresholds, config.initialCapital);
 
-  return { symbol: config.symbol, query: config.query, dataset, baseline, optimized };
+  return { symbol: config.symbol, query: config.query, dataset, baseline, optimized, ...(acceptance ? { acceptance } : {}) };
 }
 
 export interface HistoricalExperimentSummary {
@@ -93,6 +120,7 @@ export interface HistoricalExperimentSummary {
   optimizedMaxDrawdownPct: number;
   baselineTradeCount: number;
   optimizedTradeCount: number;
+  acceptanceStatus?: ResearchAcceptanceReport["status"];
 }
 
 export function summarizeHistoricalExperiment(result: HistoricalExperimentResult): HistoricalExperimentSummary {
@@ -109,5 +137,6 @@ export function summarizeHistoricalExperiment(result: HistoricalExperimentResult
 
   if (result.dataset.firstTimestamp !== undefined) summary.rangeStart = result.dataset.firstTimestamp;
   if (result.dataset.lastTimestamp !== undefined) summary.rangeEnd = result.dataset.lastTimestamp;
+  if (result.acceptance !== undefined) summary.acceptanceStatus = result.acceptance.status;
   return summary;
 }

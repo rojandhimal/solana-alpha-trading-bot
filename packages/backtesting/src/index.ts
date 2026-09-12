@@ -9,6 +9,7 @@ export * from "./strategy-execution-adapter.js";
 export * from "./portfolio-accounting.js";
 export * from "./paper-trading-session.js";
 export * from "./paper-trading-state.js";
+export * from "./paper-trading-persistence.js";
 export * from "./trade-attribution.js";
 export * from "./performance-metrics.js";
 export * from "./robustness.js";

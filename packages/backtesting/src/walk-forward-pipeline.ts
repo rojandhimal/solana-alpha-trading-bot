@@ -4,6 +4,7 @@ import { createWalkForwardWindows, splitWalkForward, type WalkForwardOptions, ty
 import { evaluateWalkForwardRobustness, type RobustnessReport } from "./robustness.js";
 import type { PerformanceMetrics } from "./performance-metrics.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
+import type { CompletedTrade } from "./trade-attribution.js";
 
 export type WalkForwardStrategyOptimizer = (
   trainCandles: readonly Candle[],
@@ -29,6 +30,7 @@ export interface WalkForwardConsistency {
 export interface WalkForwardPipelineResult {
   windows: WalkForwardPipelineWindow[];
   outOfSample: PerformanceMetrics;
+  outOfSampleTrades: CompletedTrade[];
   consistency: WalkForwardConsistency;
   robustness: RobustnessReport;
 }
@@ -129,7 +131,8 @@ export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkFor
     return selectedStrategy === undefined ? result : { ...result, selectedStrategy };
   });
   const outOfSample = aggregateOutOfSampleMetrics(windows);
+  const outOfSampleTrades = windows.flatMap((window) => window.test.trades);
   const consistency = calculateConsistency(windows);
   const robustness = evaluateWalkForwardRobustness({ outOfSample, consistency }, input.robustnessThresholds);
-  return { windows, outOfSample, consistency, robustness };
+  return { windows, outOfSample, outOfSampleTrades, consistency, robustness };
 }

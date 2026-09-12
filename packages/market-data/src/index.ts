@@ -5,3 +5,4 @@ export * from "./historical-source.js";
 export * from "./historical-data-quality.js";
 export * from "./birdeye-ohlcv.js";
 export * from "./geckoterminal-ohlcv.js";
+export * from "./binance-ohlcv.js";

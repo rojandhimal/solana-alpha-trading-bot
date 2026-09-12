@@ -25,6 +25,7 @@ const DEFAULT_BASE_URL = "https://api.geckoterminal.com/api/v2";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 250;
 const DEFAULT_PAGE_LIMIT = 1000;
+const API_VERSION = "20230203";
 
 export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly baseUrl: string;
@@ -102,7 +103,10 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
   private async fetchWithRetry(url: URL): Promise<Response> {
     for (let attempt = 0; ; attempt += 1) {
-      const response = await this.fetchImpl(url, { signal: AbortSignal.timeout(15_000) });
+      const response = await this.fetchImpl(url, {
+        headers: { Accept: `application/json;version=${API_VERSION}` },
+        signal: AbortSignal.timeout(15_000)
+      });
       if (response.ok) return response;
 
       if ((response.status !== 429 && response.status < 500) || attempt >= this.maxRetries) {

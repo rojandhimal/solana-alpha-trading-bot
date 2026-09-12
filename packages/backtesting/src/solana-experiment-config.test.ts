@@ -17,36 +17,14 @@ describe("SOLANA_EXPERIMENT_CONFIG", () => {
 
   it("pins the historical GeckoTerminal pool identity and complete-hour quality gate", () => {
     expect(SOL_GECKOTERMINAL_POOL_ADDRESS).toBe("58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2");
-    expect(SOLANA_EXPERIMENT_CONFIG.dataQuality).toEqual({
-      expectedIntervalMs: SOL_RESEARCH_EXPECTED_INTERVAL_MS,
-      maxGapCount: 0
-    });
+    expect(SOLANA_EXPERIMENT_CONFIG.dataQuality).toEqual({ expectedIntervalMs: SOL_RESEARCH_EXPECTED_INTERVAL_MS, maxGapCount: 0 });
   });
 
   it("keeps research capital, walk-forward, strategy and stress settings deterministic", () => {
     expect(SOLANA_EXPERIMENT_CONFIG.initialCapital).toBe(10_000);
-    expect(SOLANA_EXPERIMENT_CONFIG.walkForward).toEqual({
-      trainingBars: 90 * 24,
-      testingBars: 30 * 24,
-      stepBars: 30 * 24
-    });
-    expect(SOL_BASELINE_STRATEGY).toEqual({
-      fastPeriod: 10,
-      slowPeriod: 30,
-      rsiPeriod: 14,
-      momentumPeriod: 10,
-      atrPeriod: 14,
-      volumePeriod: 20,
-      entryThreshold: 0.5
-    });
-    expect(SOLANA_EXPERIMENT_CONFIG.stressScenarios).toEqual([
-      "BASE",
-      "HIGH_SLIPPAGE",
-      "HIGH_FEES",
-      "LIQUIDITY_SHOCK",
-      "EXECUTION_DELAY",
-      "VOLATILITY_SHOCK"
-    ]);
+    expect(SOLANA_EXPERIMENT_CONFIG.walkForward).toEqual({ trainingBars: 90 * 24, testingBars: 30 * 24, stepBars: 30 * 24 });
+    expect(SOL_BASELINE_STRATEGY).toEqual({ fastPeriod: 10, slowPeriod: 30, rsiPeriod: 14, momentumPeriod: 10, atrPeriod: 14, volumePeriod: 20, entryThreshold: 0.5 });
+    expect(SOLANA_EXPERIMENT_CONFIG.stressScenarios).toEqual(["BASE", "HIGH_SLIPPAGE", "HIGH_FEES", "LIQUIDITY_SHOCK", "EXECUTION_DELAY", "VOLATILITY_SHOCK"]);
   });
 
   it("does not embed credentials", () => {

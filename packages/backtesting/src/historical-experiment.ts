@@ -64,19 +64,16 @@ function evaluateOptimizedAcceptance(
   thresholds: ResearchAcceptanceThresholds,
   initialCapital: number
 ): ResearchAcceptanceReport {
-  const monteCarlo = optimized.outOfSampleTrades.length > 0
-    ? runMonteCarloTradeRobustness({ trades: optimized.outOfSampleTrades, initialCapital })
-    : undefined;
+  const acceptanceEvidence = {
+    outOfSample: optimized.outOfSample,
+    profitableWindowPct: optimized.consistency.profitableWindowPct,
+    stressRobustness: optimized.robustness,
+    ...(optimized.outOfSampleTrades.length > 0
+      ? { monteCarlo: runMonteCarloTradeRobustness({ trades: optimized.outOfSampleTrades, initialCapital }) }
+      : {})
+  };
 
-  return evaluateResearchAcceptance(
-    {
-      outOfSample: optimized.outOfSample,
-      profitableWindowPct: optimized.consistency.profitableWindowPct,
-      stressRobustness: optimized.robustness,
-      monteCarlo
-    },
-    thresholds
-  );
+  return evaluateResearchAcceptance(acceptanceEvidence, thresholds);
 }
 
 export async function runHistoricalExperiment(

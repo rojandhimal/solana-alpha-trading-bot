@@ -15,7 +15,7 @@
     "sourceMap": true,
     "outDir": "dist",
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
   "include": ["apps", "packages", "tests"],
   "exclude": ["apps/dashboard/node_modules"]

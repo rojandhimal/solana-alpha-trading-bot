@@ -19,7 +19,6 @@ export interface PreDashboardGateInput {
 
 export function evaluatePreDashboardGates(input: PreDashboardGateInput): PreDashboardGateResult {
   const reasons: string[] = [];
-  const baseline = input.baseline.outOfSample;
   const optimized = input.optimized.outOfSample;
   const minimumOosWindows = input.minimumOosWindows ?? 5;
   const minimumProfitableWindowRatePct = input.minimumProfitableWindowRatePct ?? 50;
@@ -35,15 +34,15 @@ export function evaluatePreDashboardGates(input: PreDashboardGateInput): PreDash
   if (optimized.profitFactor < 1.05) reasons.push(`optimized profit factor ${optimized.profitFactor.toFixed(2)} is below 1.05 gate`);
   if (optimized.expectancy <= 0) reasons.push("optimized expectancy is not positive");
 
-  const windowReturns = input.optimized.windows.map((window) => window.outOfSample.totalReturnPct).filter(Number.isFinite);
+  const windowReturns = input.optimized.windows.map((window) => window.test.metrics.totalReturnPct).filter(Number.isFinite);
   if (windowReturns.length >= 2) {
     const profitableRate = windowReturns.filter((value) => value > 0).length / windowReturns.length * 100;
     if (profitableRate < minimumProfitableWindowRatePct) reasons.push(`profitable OOS window rate ${profitableRate.toFixed(2)}% is below ${minimumProfitableWindowRatePct}% gate`);
     const ci = bootstrapMeanConfidenceInterval(windowReturns, { samples: 2000, confidencePct: 95, seed: 42 });
-    const tradeReturns = input.optimized.windows.flatMap((window) => window.trades.map((trade) => trade.returnPct)).filter(Number.isFinite);
-    const monteCarlo = tradeReturns.length >= 2 ? monteCarloTradeSequence(tradeReturns, { simulations: 5000, seed: 42 }) : undefined;
+    const tradeReturns = input.optimized.windows.flatMap((window) => window.test.trades.map((trade) => trade.returnPct)).filter(Number.isFinite);
+    const monteCarlo = tradeReturns.length >= 2 ? monteCarloTradeSequence(tradeReturns, { simulations: 5000, seed: 42 }) : monteCarloTradeSequence(windowReturns, { simulations: 5000, seed: 42 });
     if (ci.lowerPct <= 0) reasons.push(`95% bootstrap CI lower bound ${ci.lowerPct.toFixed(4)}% is not positive`);
-    return { passed: reasons.length === 0, reasons, statistical: { oosWindowReturnCi: ci, monteCarlo: monteCarlo ?? monteCarloTradeSequence(windowReturns, { simulations: 5000, seed: 42 }) } };
+    return { passed: reasons.length === 0, reasons, statistical: { oosWindowReturnCi: ci, monteCarlo } };
   }
   return { passed: false, reasons: [...reasons, "insufficient finite OOS window returns for statistical validation"] };
 }

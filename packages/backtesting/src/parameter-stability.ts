@@ -14,6 +14,7 @@ export interface ParameterStabilityOptions {
 
 export interface ParameterVariantMetrics { totalReturnPct: number; maxDrawdownPct: number; profitFactor: number; }
 
+/** Evaluates robustness across a supplied parameter neighborhood; the caller must supply variants generated without OOS data. */
 export function evaluateParameterStability(
   variants: readonly ParameterVariantMetrics[],
   options: ParameterStabilityOptions = {}

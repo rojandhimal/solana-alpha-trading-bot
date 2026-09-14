@@ -30,8 +30,9 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -53,8 +54,9 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Build
         run: npm run build
       - name: Run SOL DEX historical experiment
@@ -82,8 +84,9 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Binance benchmark
@@ -96,3 +99,28 @@ jobs:
           name: solana-binance-historical-experiment
           path: artifacts/solana-binance-historical-experiment.json
           if-no-files-found: error
+
+  security:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secret pattern check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[^[:space:]]+' -- ':!.github/workflows/security.yml'; then
+            echo 'Potential secret material found in tracked files.'
+            exit 1
+          fi

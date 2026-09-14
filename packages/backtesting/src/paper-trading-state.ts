@@ -7,17 +7,15 @@ import type { PaperTradingRiskLimits } from "./paper-trading-session.js";
 
 export interface PaperTradingSnapshot { candleCount: number; fillCount: number; accounting: PortfolioAccountingResult; risk: { halted: boolean; reasons: string[]; maxObservedDrawdownPct: number; maxObservedPositionNotionalPct: number }; }
 export interface PaperTradingStateConfig { initialCapital: number; execution: StrategyExecutionConfig; riskLimits?: Partial<PaperTradingRiskLimits>; allowShort?: boolean; }
-
 function accountingFor(candles: readonly StrategyCandle[], fills: readonly ExecutionFill[], initialCapital: number, allowShort: boolean | undefined): PortfolioAccountingResult { return allowShort === undefined ? accountFills(candles, fills, initialCapital) : accountFills(candles, fills, initialCapital, { allowShort }); }
 function riskFor(accounting: PortfolioAccountingResult, limits: PaperTradingRiskLimits) {
   const maxDrawdownPct = Math.max(...accounting.equityCurve.map((p) => p.drawdownPct), 0);
-  const maxPositionNotionalPct = Math.max(...accounting.equityCurve.map((p) => Math.abs(p.positionValue) / accounting.initialCapital * 100), 0);
+  const maxPositionNotionalPct = Math.max(...accounting.equityCurve.map((p) => Math.abs(p.positionValue) / Math.max(p.equity, 1e-9) * 100), 0);
   const reasons: string[] = [];
   if (maxDrawdownPct > limits.maxDrawdownPct) reasons.push(`max drawdown ${maxDrawdownPct.toFixed(2)}% exceeded ${limits.maxDrawdownPct.toFixed(2)}%`);
   if (maxPositionNotionalPct > limits.maxPositionNotionalPct) reasons.push(`max position notional ${maxPositionNotionalPct.toFixed(2)}% exceeded ${limits.maxPositionNotionalPct.toFixed(2)}%`);
   return { halted: reasons.length > 0, reasons, maxObservedDrawdownPct: maxDrawdownPct, maxObservedPositionNotionalPct: maxPositionNotionalPct };
 }
-
 export class PaperTradingState {
   private readonly candles: StrategyCandle[] = [];
   private readonly fills: ExecutionFill[] = [];
@@ -34,18 +32,20 @@ export class PaperTradingState {
   append(candle: StrategyCandle): PaperTradingSnapshot {
     if (![candle.open, candle.high, candle.low, candle.close, candle.volume].every(Number.isFinite)) throw new Error("candle values must be finite");
     if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0 || candle.close <= 0 || candle.volume < 0) throw new Error("candle prices must be positive and volume must be non-negative");
-    if (this.candles.length > 0) { const previous = this.candles.at(-1)!; if (previous.timestamp !== undefined && candle.timestamp !== undefined && candle.timestamp <= previous.timestamp) throw new Error("candle timestamp must be strictly increasing"); }
+    const previous = this.candles.at(-1);
+    if (previous?.timestamp !== undefined && candle.timestamp !== undefined && candle.timestamp <= previous.timestamp) throw new Error("candle timestamp must be strictly increasing");
     this.candles.push(candle);
     const proposed = generateStrategyFills(this.candles, this.config.execution);
     const newFills = proposed.slice(this.fills.length);
-    let candidateFills = newFills;
     const before = accountingFor(this.candles, this.fills, this.config.initialCapital, this.config.allowShort);
     const beforePosition = before.equityCurve.at(-1)?.positionQuantity ?? 0;
+    let candidateFills = newFills;
     if (this.halted) candidateFills = newFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
     else if (candidateFills.length > 0) {
       const trial = accountingFor(this.candles, [...this.fills, ...candidateFills], this.config.initialCapital, this.config.allowShort);
-      const trialPositionPct = Math.abs(trial.equityCurve.at(-1)?.positionValue ?? 0) / this.config.initialCapital * 100;
-      if (trialPositionPct > this.riskLimits.maxPositionNotionalPct) candidateFills = candidateFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
+      const point = trial.equityCurve.at(-1);
+      const trialExposurePct = point ? Math.abs(point.positionValue) / Math.max(point.equity, 1e-9) * 100 : 0;
+      if (trialExposurePct > this.riskLimits.maxPositionNotionalPct) candidateFills = candidateFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
     }
     this.fills.push(...candidateFills);
     const accounting = accountingFor(this.candles, this.fills, this.config.initialCapital, this.config.allowShort);

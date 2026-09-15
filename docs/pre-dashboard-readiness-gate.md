@@ -1,6 +1,6 @@
 # Pre-dashboard Readiness Gate
 
-This gate must be satisfied before the dashboard is treated as ready. It is a release-readiness contract, not a claim of profitability.
+This gate must be satisfied before dashboard work is considered complete. It is a release-readiness contract, not a claim of profitability.
 
 ## Mandatory gates
 
@@ -13,11 +13,11 @@ This gate must be satisfied before the dashboard is treated as ready. It is a re
 - [ ] Paper state/idempotency/reconciliation: incremental state is deterministic; persistence is idempotent; conflicting sequence data is rejected; replay can be reconciled.
 - [ ] Data quality/provenance/freshness: source/range/interval are explicit; duplicates, ordering, malformed OHLCV, gaps and coverage are audited; stale/unavailable data is not silently accepted.
 - [ ] Walk-forward OOS: optimizer sees training data only; test windows remain frozen OOS; OOS results are compounded sequentially.
-- [ ] Anti-overfitting/parameter stability: optimization uses a train-only objective, has a minimum-trade guard, and reports parameter choices across windows; stability must be evaluated before claiming readiness.
+- [ ] Anti-overfitting/parameter stability: optimization uses a train-only objective, has a minimum-trade guard, reports parameter choices across windows, and evaluates stability before readiness.
 - [ ] Stress testing: baseline plus slippage, fees, liquidity, delay and volatility shocks are evaluated through the canonical pipeline.
-- [ ] Statistical/Monte Carlo robustness: bootstrap confidence intervals and deterministic Monte Carlo trade-sequence simulations are available and exercised by the research runner.
-- [ ] Paper acceptance: deterministic replay, risk limits, state recovery and a defined minimum observation/acceptance policy are verified before live consideration.
-- [ ] End-to-end research runner/report: one command produces machine-readable provenance, data-quality, baseline, OOS, optimization, stress and statistical results plus gate status.
+- [ ] Statistical/Monte Carlo robustness: bootstrap confidence intervals and deterministic Monte Carlo trade-sequence simulations are available, tested, and included in the research report.
+- [ ] Paper acceptance: deterministic replay, risk limits, state recovery, and a defined minimum observation/acceptance policy are verified before live consideration.
+- [ ] End-to-end research runner/report: one command produces immutable provenance, data-quality, baseline, OOS, optimization, stress, statistical results, acceptance criteria, and gate status.
 - [ ] Final readiness gate: every mandatory item is evidenced by tests/CI/artifacts; any missing evidence keeps the gate RED.
 
 ## Explicit non-goals
@@ -28,4 +28,4 @@ This gate must be satisfied before the dashboard is treated as ready. It is a re
 
 ## Required evidence
 
-The candidate commit, CI run, security audit and research artifact must be recorded with immutable identifiers. Dashboard work starts only after all mandatory checks are green.
+The candidate commit, CI run, security audit, and research artifact must be recorded with immutable identifiers. Dashboard work starts only after all mandatory checks are green.

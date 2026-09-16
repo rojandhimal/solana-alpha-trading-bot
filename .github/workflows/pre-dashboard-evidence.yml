@@ -1,0 +1,56 @@
+name: Pre-dashboard Evidence
+
+on:
+  push:
+    branches: ['feature/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  REDIS_URL: redis://localhost:6379
+  SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+  DEXSCREENER_BASE_URL: https://api.dexscreener.com
+  TRADING_MODE: PAPER
+  ENABLE_LIVE_TRADING: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Full test suite
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secret pattern check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[^[:space:]]+' -- ':!.github/workflows/security.yml'; then
+            echo 'Potential secret material found in tracked files.'
+            exit 1
+          fi
+      - name: Verify PAPER mode has no signing key
+        run: |
+          node --input-type=module -e "process.env.DATABASE_URL='postgresql://ci'; process.env.REDIS_URL='redis://ci'; process.env.SOLANA_RPC_URL='https://rpc.invalid'; process.env.DEXSCREENER_BASE_URL='https://api.invalid'; process.env.TRADING_MODE='PAPER'; process.env.ENABLE_LIVE_TRADING='false'; delete process.env.SOLANA_PRIVATE_KEY; await import('./dist/packages/config/src/index.js'); console.log('PAPER fail-closed config OK')"
+      - name: Verify reproducible benchmark entrypoint builds
+        run: test -f dist/apps/research/src/solana-binance-benchmark.js

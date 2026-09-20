@@ -27,11 +27,20 @@ const envSchema = z.object({
   if (value.ENABLE_LIVE_TRADING && value.TRADING_MODE !== "LIVE") ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "ENABLE_LIVE_TRADING=true is only valid with TRADING_MODE=LIVE" });
 });
 
-const parsed = envSchema.safeParse(process.env);
-if (!parsed.success) {
-  console.error("Invalid environment configuration:");
-  console.error(parsed.error.format());
+export type AppConfig = z.infer<typeof envSchema>;
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const parsed = envSchema.safeParse(env);
+  if (!parsed.success) throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
+  return parsed.data;
+}
+
+let loadedConfig: AppConfig;
+try {
+  loadedConfig = loadConfig();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : "Invalid environment configuration");
   process.exit(1);
 }
 
-export const config = parsed.data;
+export const config = loadedConfig;

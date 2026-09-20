@@ -101,7 +101,18 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Binance benchmark
-        run: npm run research:solana:binance
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          if npm run research:solana:binance 2>&1 | tee /tmp/binance-research.log; then
+            exit 0
+          fi
+          if grep -q "HTTP 451" /tmp/binance-research.log && grep -q "restricted location" /tmp/binance-research.log; then
+            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"Binance public API","message":"The CI runner location is restricted by Binance eligibility policy. No substituted exchange data is used for the SOL benchmark."}' > artifacts/solana-binance-historical-experiment.json
+            exit 0
+          fi
+          exit 1
         env:
           SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
       - name: Upload Binance benchmark

@@ -20,6 +20,7 @@ export interface AlphaStrategyOptimizationResult {
   strategy: StrategyExecutionConfig;
   score: number;
   validationScore: number;
+  initialCapital: number;
   tradeCount: number;
   totalReturnPct: number;
   maxDrawdownPct: number;
@@ -69,9 +70,9 @@ export function optimizeAlphaStrategy(trainCandles: readonly Candle[], base: Str
     if (fit.metrics.tradeCount < minTrades) continue;
     const validation = runCandidate(validationCandles, base, strategy, initialCapital);
     if (validation.metrics.tradeCount === 0) continue;
-    const candidate: AlphaStrategyOptimizationResult = { strategy: { ...base, strategy }, score: objective(fit.metrics), validationScore: objective(validation.metrics), tradeCount: fit.metrics.tradeCount, totalReturnPct: fit.metrics.totalReturnPct, maxDrawdownPct: fit.metrics.maxDrawdownPct, profitFactor: fit.metrics.profitFactor, expectancy: fit.metrics.expectancy };
+    const candidate: AlphaStrategyOptimizationResult = { strategy: { ...base, strategy }, score: objective(fit.metrics), validationScore: objective(validation.metrics), initialCapital, tradeCount: fit.metrics.tradeCount, totalReturnPct: fit.metrics.totalReturnPct, maxDrawdownPct: fit.metrics.maxDrawdownPct, profitFactor: fit.metrics.profitFactor, expectancy: fit.metrics.expectancy };
     const combinedScore = candidate.validationScore * 0.6 + candidate.score * 0.4;
     if (!best || combinedScore > bestCombinedScore || (combinedScore === bestCombinedScore && JSON.stringify(candidate.strategy.strategy) < JSON.stringify(best.strategy.strategy))) { best = candidate; bestCombinedScore = combinedScore; }
   }
-  return best ?? { strategy: base, score: Number.NEGATIVE_INFINITY, validationScore: Number.NEGATIVE_INFINITY, tradeCount: 0, totalReturnPct: 0, maxDrawdownPct: 0, profitFactor: 0, expectancy: 0 };
+  return best ?? { strategy: base, score: Number.NEGATIVE_INFINITY, validationScore: Number.NEGATIVE_INFINITY, initialCapital, tradeCount: 0, totalReturnPct: 0, maxDrawdownPct: 0, profitFactor: 0, expectancy: 0 };
 }

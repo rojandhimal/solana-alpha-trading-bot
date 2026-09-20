@@ -22,6 +22,15 @@ describe("alpha strategy optimizer", () => {
     expect(() => optimizeAlphaStrategy([], base)).toThrow("at least four candles");
   });
 
+  it("propagates the supplied initial capital", () => {
+    const result = optimizeAlphaStrategy(candles, base, { fastPeriods: [3], slowPeriods: [10], rsiPeriods: [5], momentumPeriods: [5], atrPeriods: [5], volumePeriods: [5], entryThresholds: [0.5], minTrades: 0, initialCapital: 20_000 });
+    expect(Number.isFinite(result.score)).toBe(true);
+  });
+
+  it("rejects invalid initial capital", () => {
+    expect(() => optimizeAlphaStrategy(candles, base, { initialCapital: 0 })).toThrow("initialCapital must be positive and finite");
+  });
+
   it("rejects invalid validation fractions", () => {
     expect(() => optimizeAlphaStrategy(candles, base, { validationFraction: 0.5 })).toThrow("validationFraction");
   });

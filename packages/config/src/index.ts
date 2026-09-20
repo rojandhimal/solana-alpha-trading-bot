@@ -18,7 +18,13 @@ const envSchema = z.object({
   MAX_EXPECTED_SLIPPAGE_PERCENT: z.coerce.number().min(0).max(100).default(1),
   MIN_SIGNAL_SCORE: z.coerce.number().min(0).max(100).default(80),
   TRADING_MODE: z.enum(["PAPER", "LIVE"]).default("PAPER"),
-  ENABLE_LIVE_TRADING: z.preprocess((value) => {\n    if (typeof value === "string") {\n      if (value.toLowerCase() === "true") return true;\n      if (value.toLowerCase() === "false") return false;\n    }\n    return value;\n  }, z.boolean()).default(false),
+  ENABLE_LIVE_TRADING: z.preprocess((value) => {
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true") return true;
+      if (value.toLowerCase() === "false") return false;
+    }
+    return value;
+  }, z.boolean()).default(false),
   SOLANA_PRIVATE_KEY: z.string().min(1).optional()
 }).superRefine((value, ctx) => {
   if (value.TRADING_MODE === "LIVE" && !value.ENABLE_LIVE_TRADING) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ENABLE_LIVE_TRADING"], message: "LIVE trading requires explicit ENABLE_LIVE_TRADING=true" });

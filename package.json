@@ -4,20 +4,22 @@
   "private": true,
   "type": "module",
   "description": "Research-grade Solana token scanning and paper trading platform",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/scanner",
+    "packages/*"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "dashboard:dev": "npm --workspace @solana-alpha/dashboard run dev",
-    "dashboard:build": "npm --workspace @solana-alpha/dashboard run build",
-    "dashboard:preview": "npm --workspace @solana-alpha/dashboard run preview",
     "research:solana": "node dist/apps/research/src/solana-historical-experiment.js",
     "research:solana:binance": "node dist/apps/research/src/solana-binance-benchmark.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "prettier": "^3.4.2",

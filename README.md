@@ -111,19 +111,24 @@ Copy `.env.example` to `.env` and update values as required.
 Important defaults:
 
 ```env
+LIVE_TRADING=false
 TRADING_MODE=PAPER
+RPC_ENDPOINT=https://api.mainnet-beta.solana.com
 MIN_LIQUIDITY_USD=100000
 MIN_VOLUME_24H_USD=500000
 MIN_SIGNAL_SCORE=80
 ```
 
-Do not populate `SOLANA_PRIVATE_KEY` during Phase A/B.
+`LIVE_TRADING` is an explicit kill-switch and defaults to `false`. If `TRADING_MODE=LIVE` and `LIVE_TRADING` is not `true`, the app exits before running.
+
+Never commit private keys or mnemonics. Keep them only in local environment variables or GitHub Actions Secrets.
 
 ## Development commands
 
 ```bash
 npm run build
 npm test
+npm run audit:ci
 npm run format
 ```
 

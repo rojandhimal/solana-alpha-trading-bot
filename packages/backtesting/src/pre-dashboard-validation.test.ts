@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { validatePreDashboardEvidence, type PreDashboardEvidence } from "./pre-dashboard-validation.js";
+import { validatePreDashboardEvidence, type PreDashboardValidationEvidence } from "./pre-dashboard-validation.js";
 
-const passingEvidence = (): PreDashboardEvidence => ({
+const passingEvidence = (): PreDashboardValidationEvidence => ({
   dataQualityPassed: true,
   walkForwardWindowCount: 9,
   noLookAhead: true,

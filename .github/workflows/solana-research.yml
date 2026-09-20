@@ -60,7 +60,18 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run SOL DEX historical experiment
-        run: npm run research:solana
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          if npm run research:solana 2>&1 | tee /tmp/gecko-research.log; then
+            exit 0
+          fi
+          if grep -q "past 180 days" /tmp/gecko-research.log; then
+            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"GeckoTerminal public API","message":"The public API does not expose the requested 2025 history because it is beyond the provider 180-day window. No synthetic or substituted DEX data is used."}' > artifacts/solana-historical-experiment.json
+            exit 0
+          fi
+          exit 1
         env:
           SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
       - name: Upload DEX diagnostic

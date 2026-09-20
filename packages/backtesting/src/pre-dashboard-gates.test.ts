@@ -26,7 +26,6 @@ function result(returns: number[]): WalkForwardPipelineResult {
         { returnPct: totalReturnPct / 2 }
       ]
     } as never,
-    selectedStrategy: undefined
   }));
   return {
     windows,
@@ -50,7 +49,7 @@ function result(returns: number[]): WalkForwardPipelineResult {
       averageOosDrawdownPct: 5,
       worstOosDrawdownPct: 5
     },
-    robustness: { passed: true, reasons: [] }
+    robustness: { passed: true, passingScenarioRatePct: 100, worstDrawdownPct: 5, worstProfitFactor: 1.5, worstExpectancy: 1, failures: [] }
   };
 }
 

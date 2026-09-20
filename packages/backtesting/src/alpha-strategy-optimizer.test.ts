@@ -24,7 +24,7 @@ describe("alpha strategy optimizer", () => {
 
   it("propagates the supplied initial capital", () => {
     const result = optimizeAlphaStrategy(candles, base, { fastPeriods: [3], slowPeriods: [10], rsiPeriods: [5], momentumPeriods: [5], atrPeriods: [5], volumePeriods: [5], entryThresholds: [0.5], minTrades: 0, initialCapital: 20_000 });
-    expect(Number.isFinite(result.score)).toBe(true);
+    expect(result.initialCapital).toBe(20_000);
   });
 
   it("rejects invalid initial capital", () => {

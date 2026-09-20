@@ -31,14 +31,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Install dependencies and regenerate lock
-        run: npm install --ignore-scripts
-      - name: Upload regenerated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-package-lock
-          path: package-lock.json
-          if-no-files-found: error
+      - name: Install dependencies
+        run: npm install
       - name: Typecheck
         run: npm run typecheck
       - name: Full test suite

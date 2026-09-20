@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[1-9A-HJ-NP-Za-km-z]{32,}' -- ':!.github/workflows/security.yml'; then
+          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[1-9A-HJ-NP-Za-km-z]{32,}' -- ':!.github/workflows/**'; then
             echo 'Potential secret material found in tracked files.'
             exit 1
           fi

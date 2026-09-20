@@ -1,7 +1,7 @@
 import type { RobustnessReport } from "./robustness.js";
 import type { BootstrapConfidenceInterval, MonteCarloSummary } from "./statistical-robustness.js";
 
-export interface PreDashboardValidationEvidence {
+export interface PreDashboardEvidence {
   dataQualityPassed: boolean;
   walkForwardWindowCount: number;
   noLookAhead: boolean;
@@ -22,7 +22,7 @@ export interface PreDashboardValidation {
   failures: string[];
 }
 
-export function validatePreDashboardValidationEvidence(evidence: PreDashboardValidationEvidence): PreDashboardValidation {
+export function validatePreDashboardEvidence(evidence: PreDashboardEvidence): PreDashboardValidation {
   const failures: string[] = [];
   if (!evidence.dataQualityPassed) failures.push("DATA_QUALITY_FAILED");
   if (!Number.isInteger(evidence.walkForwardWindowCount) || evidence.walkForwardWindowCount < 2) failures.push("INSUFFICIENT_WALK_FORWARD_WINDOWS");

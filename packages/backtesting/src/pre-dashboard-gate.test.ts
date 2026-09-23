@@ -13,6 +13,6 @@ const base: PreDashboardEvidence = {
 
 describe("pre-dashboard gate", () => {
   it("passes only when every evidence class is present and green", () => expect(evaluatePreDashboardGate(base)).toEqual({ status: "PASS", readyForDashboard: true, failures: [] }));
-  it("fails closed when empirical evidence is missing", () => { const result = evaluatePreDashboardGate({ ...base, release: { ...base.release, dependencyLockSha: undefined }, paperTrading: { ...base.paperTrading, observationCount: 0 } }); expect(result.readyForDashboard).toBe(false); expect(result.failures).toEqual(expect.arrayContaining(["DEPENDENCY_LOCK_IDENTITY_MISSING", "PAPER_TRADING_OBSERVATIONS_MISSING"])); });
+  it("fails closed when empirical evidence is missing", () => { const result = evaluatePreDashboardGate({ ...base, release: { commitSha: base.release.commitSha, branch: base.release.branch }, paperTrading: { ...base.paperTrading, observationCount: 0 } }); expect(result.readyForDashboard).toBe(false); expect(result.failures).toEqual(expect.arrayContaining(["DEPENDENCY_LOCK_IDENTITY_MISSING", "PAPER_TRADING_OBSERVATIONS_MISSING"])); });
   it("never allows live trading to satisfy the gate", () => { const result = evaluatePreDashboardGate({ ...base, controls: { ...base.controls, liveTradingDisabled: false } }); expect(result.readyForDashboard).toBe(false); expect(result.failures).toContain("LIVE_TRADING_MUST_REMAIN_DISABLED"); });
 });

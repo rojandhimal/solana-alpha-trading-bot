@@ -37,6 +37,9 @@ jobs:
       - name: Install dependencies
         run: npm install --include=dev
 
+      - name: Ensure pinned test runner is installed
+        run: npm install --no-save --include=dev vitest@2.1.8
+
       - name: Typecheck
         run: npm run typecheck
 

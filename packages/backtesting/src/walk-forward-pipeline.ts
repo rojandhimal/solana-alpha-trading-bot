@@ -109,7 +109,7 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
   };
 }
 
-export function aggregateWalkForwardOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
+export function aggregateWalkForwardOutOfSampleMetrics(windows: readonly { test: BacktestPipelineResult }[]): PerformanceMetrics {
   return aggregateOutOfSampleMetrics(windows);
 }
 

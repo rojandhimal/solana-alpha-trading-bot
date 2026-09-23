@@ -13,6 +13,7 @@ export * from "./paper-trading-persistence.js";
 export * from "./trade-attribution.js";
 export * from "./performance-metrics.js";
 export * from "./robustness.js";
+export * from "./readiness-gate.js";
 export * from "./statistical-robustness.js";
 export * from "./parameter-stability.js";
 export * from "./pre-dashboard-validation.js";

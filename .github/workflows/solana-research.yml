@@ -31,8 +31,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --include=dev --package-lock=false
+        run: npm ci --include=dev
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -55,8 +56,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --include=dev --package-lock=false
+        run: npm ci --include=dev
       - name: Build
         run: npm run build
       - name: Run SOL DEX historical experiment
@@ -96,8 +98,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --include=dev --package-lock=false
+        run: npm ci --include=dev
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Binance benchmark
@@ -134,8 +137,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --include=dev --package-lock=false
+        run: npm ci --include=dev
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
       - name: Secret pattern check

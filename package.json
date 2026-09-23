@@ -6,6 +6,7 @@
   "description": "Research-grade Solana token scanning and paper trading platform",
   "workspaces": [
     "apps/scanner",
+    "apps/dashboard",
     "packages/*"
   ],
   "scripts": {

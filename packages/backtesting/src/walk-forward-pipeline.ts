@@ -52,7 +52,7 @@ function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!;
 }
 
-function aggregateOutOfSampleMetrics(windows: readonly WalkForwardPipelineWindow[]): PerformanceMetrics {
+function aggregateOutOfSampleMetrics(windows: readonly { test: BacktestPipelineResult }[]): PerformanceMetrics {
   const tradeCount = windows.reduce((sum, window) => sum + window.test.metrics.tradeCount, 0);
   const initialCapital = windows[0]?.test.baseline.initialCapital ?? 0;
   let compoundedEquity = initialCapital;

@@ -12,12 +12,12 @@ const metrics: Metric[] = [
 ];
 
 const stages = [
-  ["Historical data", "Complete", "Provider provenance, pagination and quality checks"],
-  ["Baseline backtest", "Complete", "Deterministic execution and portfolio accounting"],
-  ["Walk-forward", "Complete", "Train/test separation with sequential OOS aggregation"],
-  ["Robustness", "Complete", "Stress scenarios and statistical robustness framework"],
-  ["Paper trading", "Complete", "Stateful session, persistence contract and risk halt"],
-  ["Security gate", "Complete", "Fail-closed live configuration and secret checks"],
+  ["Historical data", "Implemented", "Provider provenance, pagination and quality checks"],
+  ["Baseline backtest", "Implemented", "Deterministic execution and portfolio accounting"],
+  ["Walk-forward", "Implemented", "Train/test separation with sequential OOS aggregation"],
+  ["Robustness", "REVIEW", "Stress/statistical framework implemented; CI evidence still required"],
+  ["Paper trading", "Implemented", "Stateful session, persistence contract and risk halt"],
+  ["Security gate", "REVIEW", "Fail-closed live configuration; dependency/CI gate still open"],
   ["Dashboard", "Active", "Read-only research and paper-trading observability"]
 ];
 

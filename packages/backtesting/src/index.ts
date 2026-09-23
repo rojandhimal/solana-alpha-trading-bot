@@ -30,3 +30,8 @@ export * from "./walk-forward-pipeline.js";
 export * from "./historical-backtest-runner.js";
 export * from "./historical-experiment.js";
 export * from "./solana-experiment-config.js";
+export * from "./parameter-stability.js";
+export * from "./walk-forward-parameter-selection.js";
+export * from "./continuous-oos-simulation.js";
+export * from "./monte-carlo-trade-robustness.js";
+export * from "./research-acceptance.js";

@@ -4,6 +4,7 @@ import { createWalkForwardWindows, splitWalkForward, type WalkForwardOptions, ty
 import { evaluateWalkForwardRobustness, type RobustnessReport } from "./robustness.js";
 import type { PerformanceMetrics } from "./performance-metrics.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
+import type { CompletedTrade } from "./trade-attribution.js";
 
 export type WalkForwardStrategyOptimizer = (
   trainCandles: readonly Candle[],
@@ -29,6 +30,7 @@ export interface WalkForwardConsistency {
 export interface WalkForwardPipelineResult {
   windows: WalkForwardPipelineWindow[];
   outOfSample: PerformanceMetrics;
+  outOfSampleTrades: CompletedTrade[];
   consistency: WalkForwardConsistency;
   robustness: RobustnessReport;
 }
@@ -58,7 +60,6 @@ function aggregateOutOfSampleMetrics(windows: readonly { test: BacktestPipelineR
   let compoundedEquity = initialCapital;
   let peakEquity = initialCapital;
   let maxDrawdownPct = 0;
-
   for (const window of windows) {
     const windowInitialCapital = window.test.baseline.initialCapital;
     if (!Number.isFinite(windowInitialCapital) || windowInitialCapital <= 0) continue;
@@ -71,7 +72,6 @@ function aggregateOutOfSampleMetrics(windows: readonly { test: BacktestPipelineR
     }
     compoundedEquity *= window.test.baseline.finalEquity / windowInitialCapital;
   }
-
   const netProfit = compoundedEquity - initialCapital;
   const totalReturnPct = initialCapital === 0 ? 0 : (netProfit / initialCapital) * 100;
   let winningTrades = 0;
@@ -92,6 +92,12 @@ function aggregateOutOfSampleMetrics(windows: readonly { test: BacktestPipelineR
   const averageWin = winningTrades === 0 ? 0 : grossProfit / winningTrades;
   const averageLoss = losingTrades === 0 ? 0 : grossLoss / losingTrades;
   return { totalReturnPct, netProfit, maxDrawdownPct, tradeCount, winRatePct, profitFactor, expectancy: tradeCount === 0 ? 0 : netProfit / tradeCount, averageWin, averageLoss };
+}
+
+export function aggregateWalkForwardOutOfSampleMetrics(
+  windows: readonly { test: BacktestPipelineResult }[]
+): PerformanceMetrics {
+  return aggregateOutOfSampleMetrics(windows as readonly WalkForwardPipelineWindow[]);
 }
 
 function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): WalkForwardConsistency {
@@ -129,7 +135,8 @@ export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkFor
     return selectedStrategy === undefined ? result : { ...result, selectedStrategy };
   });
   const outOfSample = aggregateOutOfSampleMetrics(windows);
+  const outOfSampleTrades = windows.flatMap((window) => window.test.trades);
   const consistency = calculateConsistency(windows);
   const robustness = evaluateWalkForwardRobustness({ outOfSample, consistency }, input.robustnessThresholds);
-  return { windows, outOfSample, consistency, robustness };
+  return { windows, outOfSample, outOfSampleTrades, consistency, robustness };
 }

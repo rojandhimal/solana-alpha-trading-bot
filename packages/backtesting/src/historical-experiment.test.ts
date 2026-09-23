@@ -41,6 +41,18 @@ const permissiveThresholds = {
   minExpectancy: -1_000
 };
 
+const acceptanceThresholds = {
+  minOosReturnPct: -100,
+  maxOosDrawdownPct: 100,
+  minOosTradeCount: 0,
+  minOosProfitFactor: 0,
+  minOosExpectancy: -1_000,
+  minProfitableWindowPct: 0,
+  requireParameterStability: false,
+  minPassingStressScenarioRatePct: 0,
+  maxMonteCarlo95DrawdownPct: 100
+};
+
 describe("historical experiment", () => {
   it("audits the dataset once and runs baseline and optimized WFO from the same candles", async () => {
     let loadCount = 0;
@@ -67,6 +79,7 @@ describe("historical experiment", () => {
       walkForward: { trainingBars: 30, testingBars: 15 },
       stressScenarios: [],
       robustnessThresholds: permissiveThresholds,
+      acceptanceThresholds,
       optimization: {
         fastPeriods: [5],
         slowPeriods: [10],
@@ -89,13 +102,16 @@ describe("historical experiment", () => {
     expect(result.baseline.windows).toHaveLength(2);
     expect(result.optimized.windows).toHaveLength(2);
     expect(result.optimized.windows.every((window) => window.selectedStrategy !== undefined)).toBe(true);
+    expect(result.optimized.outOfSampleTrades.length).toBe(result.optimized.outOfSample.tradeCount);
+    expect(result.acceptance).toBeDefined();
 
     const summary = summarizeHistoricalExperiment(result);
     expect(summary).toMatchObject({
       symbol: "SOL",
       barCount: 60,
       rangeStart: bars[0]!.timestamp,
-      rangeEnd: bars.at(-1)!.timestamp
+      rangeEnd: bars.at(-1)!.timestamp,
+      acceptanceStatus: result.acceptance!.status
     });
     expect(Number.isFinite(summary.baselineReturnPct)).toBe(true);
     expect(Number.isFinite(summary.optimizedReturnPct)).toBe(true);

@@ -1,6 +1,5 @@
 import type { Candle } from "./execution-model.js";
 import { runBacktestPipeline } from "./backtest-pipeline.js";
-import { calculateParameterStabilityScore } from "./parameter-stability.js";
 import type { AlphaStrategyConfig } from "./alpha-strategy.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 
@@ -13,6 +12,7 @@ export interface AlphaStrategyOptimizationOptions {
   volumePeriods?: readonly number[];
   entryThresholds?: readonly number[];
   minTrades?: number;
+  validationFraction?: number;
   minProfitFactor?: number;
   minExpectancy?: number;
   maxCandidates?: number;
@@ -22,6 +22,8 @@ export interface AlphaStrategyOptimizationOptions {
 export interface AlphaStrategyOptimizationResult {
   strategy: StrategyExecutionConfig;
   score: number;
+  validationScore: number;
+  initialCapital: number;
   tradeCount: number;
   totalReturnPct: number;
   maxDrawdownPct: number;
@@ -29,7 +31,7 @@ export interface AlphaStrategyOptimizationResult {
   expectancy: number;
 }
 
-const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades" | "minProfitFactor" | "minExpectancy" | "maxCandidates" | "initialCapital">> = {
+const DEFAULT_GRID = {
   fastPeriods: [5, 10, 15],
   slowPeriods: [20, 30, 40],
   rsiPeriods: [10, 14],
@@ -37,7 +39,7 @@ const DEFAULT_GRID: Required<Omit<AlphaStrategyOptimizationOptions, "minTrades" 
   atrPeriods: [10, 14],
   volumePeriods: [10, 20],
   entryThresholds: [0.4, 0.5, 0.6]
-};
+} as const;
 
 function valuesOrDefault<T>(values: readonly T[] | undefined, fallback: readonly T[]): readonly T[] {
   return values && values.length > 0 ? values : fallback;
@@ -47,6 +49,13 @@ function validatePeriods(name: string, values: readonly number[]): void {
   if (values.length === 0 || values.some((value) => !Number.isInteger(value) || value <= 0)) {
     throw new Error(`${name} must contain positive integers`);
   }
+}
+
+function objective(metrics: { totalReturnPct: number; maxDrawdownPct: number; profitFactor: number; expectancy: number; tradeCount: number }): number {
+  const { totalReturnPct, maxDrawdownPct, profitFactor, expectancy, tradeCount } = metrics;
+  if (![totalReturnPct, maxDrawdownPct, expectancy].every(Number.isFinite)) return Number.NEGATIVE_INFINITY;
+  const boundedProfitFactor = Number.isFinite(profitFactor) ? Math.min(profitFactor, 5) : profitFactor > 0 ? 5 : 0;
+  return totalReturnPct + boundedProfitFactor * 2 + expectancy * 0.1 - maxDrawdownPct * 0.75 + Math.log1p(tradeCount);
 }
 
 function candidateKey(strategy: AlphaStrategyConfig): string {
@@ -63,7 +72,6 @@ function candidateKey(strategy: AlphaStrategyConfig): string {
 
 function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyOptimizationOptions): AlphaStrategyConfig[] {
   if (!base.strategy) throw new Error("base strategy configuration is required");
-  const baseConfig = base.strategy;
   const fastPeriods = valuesOrDefault(options.fastPeriods, DEFAULT_GRID.fastPeriods);
   const slowPeriods = valuesOrDefault(options.slowPeriods, DEFAULT_GRID.slowPeriods);
   const rsiPeriods = valuesOrDefault(options.rsiPeriods, DEFAULT_GRID.rsiPeriods);
@@ -75,8 +83,8 @@ function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyO
   for (const [name, values] of Object.entries({ fastPeriods, slowPeriods, rsiPeriods, momentumPeriods, atrPeriods, volumePeriods })) {
     validatePeriods(name, values);
   }
-  if (entryThresholds.length === 0 || entryThresholds.some((value) => !Number.isFinite(value))) {
-    throw new Error("entryThresholds must contain finite values");
+  if (entryThresholds.some((value) => !Number.isFinite(value) || value <= 0 || value > 1)) {
+    throw new Error("entryThresholds must be > 0 and <= 1");
   }
 
   const candidates: AlphaStrategyConfig[] = [];
@@ -101,17 +109,26 @@ function candidateConfigs(base: StrategyExecutionConfig, options: AlphaStrategyO
       }
     }
   }
-  return candidates.length > 0 ? candidates : [baseConfig];
+
+  return candidates.length > 0 ? candidates : [base.strategy];
 }
 
-export function optimizeAlphaStrategy(
-  trainCandles: readonly Candle[],
-  base: StrategyExecutionConfig,
-  options: AlphaStrategyOptimizationOptions = {}
-): AlphaStrategyOptimizationResult {
-  if (trainCandles.length === 0) throw new Error("trainCandles must not be empty");
+function runCandidate(candles: readonly Candle[], base: StrategyExecutionConfig, strategy: AlphaStrategyConfig, initialCapital: number) {
+  return runBacktestPipeline({
+    candles,
+    strategy: { ...base, strategy },
+    initialCapital,
+    stressScenarios: [],
+    robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Number.MAX_VALUE }
+  });
+}
+
+export function optimizeAlphaStrategy(trainCandles: readonly Candle[], base: StrategyExecutionConfig, options: AlphaStrategyOptimizationOptions = {}): AlphaStrategyOptimizationResult {
+  if (trainCandles.length < 4) throw new Error("trainCandles must contain at least four candles");
   const minTrades = options.minTrades ?? 3;
   if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
+  const validationFraction = options.validationFraction ?? 0.25;
+  if (!Number.isFinite(validationFraction) || validationFraction < 0.1 || validationFraction >= 0.5) throw new Error("validationFraction must be >= 0.1 and < 0.5");
   const minProfitFactor = options.minProfitFactor ?? 0;
   if (!Number.isFinite(minProfitFactor) || minProfitFactor < 0) throw new Error("minProfitFactor must be non-negative and finite");
   const minExpectancy = options.minExpectancy ?? -Number.MAX_VALUE;
@@ -126,31 +143,49 @@ export function optimizeAlphaStrategy(
     throw new Error(`candidate grid contains ${candidates.length} candidates, exceeding maxCandidates ${maxCandidates}`);
   }
 
+  const validationBars = Math.max(1, Math.floor(trainCandles.length * validationFraction));
+  const selectionBars = trainCandles.length - validationBars;
+  if (selectionBars < 2 || validationBars < 2) throw new Error("not enough candles for inner validation");
+  const selectionCandles = trainCandles.slice(0, selectionBars);
+  const validationCandles = trainCandles.slice(selectionBars);
+
   let best: AlphaStrategyOptimizationResult | undefined;
+  let bestCombinedScore = Number.NEGATIVE_INFINITY;
   for (const strategy of candidates) {
-    const result = runBacktestPipeline({
-      candles: trainCandles,
-      strategy: { ...base, strategy },
-      initialCapital,
-      stressScenarios: [],
-      robustnessThresholds: { minPassingScenarioRatePct: 0, maxDrawdownPct: 100, minProfitFactor: 0, minExpectancy: -Number.MAX_VALUE }
-    });
-    if (result.metrics.tradeCount < minTrades) continue;
-    if (result.metrics.profitFactor < minProfitFactor) continue;
-    if (result.metrics.expectancy < minExpectancy) continue;
+    const fit = runCandidate(selectionCandles, base, strategy, initialCapital);
+    if (fit.metrics.tradeCount < minTrades) continue;
+    const validation = runCandidate(validationCandles, base, strategy, initialCapital);
+    if (validation.metrics.tradeCount === 0) continue;
+    if (validation.metrics.profitFactor < minProfitFactor) continue;
+    if (validation.metrics.expectancy < minExpectancy) continue;
 
     const candidate: AlphaStrategyOptimizationResult = {
       strategy: { ...base, strategy },
-      score: calculateParameterStabilityScore(result.metrics, initialCapital),
-      tradeCount: result.metrics.tradeCount,
-      totalReturnPct: result.metrics.totalReturnPct,
-      maxDrawdownPct: result.metrics.maxDrawdownPct,
-      profitFactor: result.metrics.profitFactor,
-      expectancy: result.metrics.expectancy
+      score: objective(fit.metrics),
+      validationScore: objective(validation.metrics),
+      initialCapital,
+      tradeCount: fit.metrics.tradeCount,
+      totalReturnPct: fit.metrics.totalReturnPct,
+      maxDrawdownPct: fit.metrics.maxDrawdownPct,
+      profitFactor: fit.metrics.profitFactor,
+      expectancy: fit.metrics.expectancy
     };
-    if (!best || candidate.score > best.score) best = candidate;
+    const combinedScore = candidate.validationScore * 0.6 + candidate.score * 0.4;
+    if (!best || combinedScore > bestCombinedScore || (combinedScore === bestCombinedScore && JSON.stringify(candidate.strategy.strategy) < JSON.stringify(best.strategy.strategy))) {
+      best = candidate;
+      bestCombinedScore = combinedScore;
+    }
   }
 
-  if (best) return best;
-  return { strategy: base, score: Number.NEGATIVE_INFINITY, tradeCount: 0, totalReturnPct: 0, maxDrawdownPct: 0, profitFactor: 0, expectancy: 0 };
+  return best ?? {
+    strategy: base,
+    score: Number.NEGATIVE_INFINITY,
+    validationScore: Number.NEGATIVE_INFINITY,
+    initialCapital,
+    tradeCount: 0,
+    totalReturnPct: 0,
+    maxDrawdownPct: 0,
+    profitFactor: 0,
+    expectancy: 0
+  };
 }

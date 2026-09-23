@@ -5,6 +5,7 @@ import type { StressScenario } from "./stress-testing.js";
 export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
 export const SOL_GECKOTERMINAL_POOL_ADDRESS = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
 export const SOL_RESEARCH_INTERVAL = "1H";
+export const SOL_RESEARCH_EXPECTED_INTERVAL_MS = 60 * 60 * 1000;
 
 // Fixed research period for reproducibility. This is configuration only; it does not
 // imply that the strategy is profitable or suitable for live trading.
@@ -59,7 +60,11 @@ export function createSolHistoricalExperimentConfig(): HistoricalExperimentConfi
     },
     walkForward: SOL_WALK_FORWARD,
     stressScenarios: SOL_STRESS_SCENARIOS,
-    robustnessThresholds: SOL_ROBUSTNESS_THRESHOLDS
+    robustnessThresholds: SOL_ROBUSTNESS_THRESHOLDS,
+    dataQuality: {
+      expectedIntervalMs: SOL_RESEARCH_EXPECTED_INTERVAL_MS,
+      maxGapCount: 0
+    }
   };
 }
 

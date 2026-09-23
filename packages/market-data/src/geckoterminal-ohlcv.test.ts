@@ -14,12 +14,13 @@ function response(rows: readonly number[][], status = 200): Response {
 }
 
 describe("GeckoTerminalOhlcvSource", () => {
-  it("requests the pool OHLCV endpoint with the correct timeframe and aggregate", async () => {
-    const fetchImpl = vi.fn(async (input: URL | RequestInfo) => {
+  it("requests the pool OHLCV endpoint with the correct timeframe, aggregate, and API version", async () => {
+    const fetchImpl = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       const url = new URL(String(input));
       expect(url.pathname).toContain(`/networks/solana/pools/${TEST_POOL}/ohlcv/hour`);
       expect(url.searchParams.get("aggregate")).toBe("1");
       expect(url.searchParams.get("limit")).toBe("1000");
+      expect(new Headers(init?.headers).get("accept")).toBe("application/json;version=20230203");
       return response([[1_700_000_000, 100, 101, 99, 100.5, 10]]);
     });
 

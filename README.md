@@ -2,204 +2,89 @@
 
 Research-grade Solana token scanning, risk analysis, scoring and paper-trading platform.
 
-> **Status:** Phase A/B foundation. Paper trading only. Live execution is intentionally not implemented in this initial release.
+> **Status:** Pre-dashboard research foundation. The read-only dashboard starts only after the documented readiness evidence gate passes. Live execution remains disabled.
 
 ## Goals
 
-Build a multi-factor system that prioritizes:
-
-- liquidity and exitability
-- token/program safety
-- holder concentration
-- trading activity and momentum
-- smart-money signals
-- market regime
-- strict risk controls
-- auditable decisions
+Build a multi-factor system that prioritizes liquidity, safety, trading activity, momentum, smart-money signals, market regime, strict risk controls and auditable decisions.
 
 The project does **not** assume any score is a guaranteed probability of profit.
 
 ## Architecture
 
 ```text
-Market Data
-    |
-    v
-Normalizer / Validator
-    |
-    v
-Eligibility Gate
-    |
-    +--> Safety Engine
-    +--> Liquidity Engine
-    +--> Holder Engine
-    +--> Flow Engine
-    +--> Momentum Engine
-    +--> Smart-Money Engine
-    +--> Market-Regime Engine
-    |
-    v
-Precision Scoring Engine
-    |
-    v
-Signal Validator
-    |
-    v
-Risk Engine
-    |
-    v
-Paper Trading
-    |
-    v
-Performance / Backtesting
+Market Data -> Normalizer / Validator -> Eligibility / Safety / Liquidity / Flow / Momentum
+           -> Precision Scoring -> Signal Validation -> Deterministic Risk Controls
+           -> Paper Trading -> Performance / Backtesting / Walk-Forward / Robustness
+           -> [PRE-DASHBOARD READINESS GATE]
+           -> Read-only Dashboard
 
-Future:
-Paper Trading --> Risk Approval --> Jupiter Execution --> Solana
+Future and separately gated:
+Paper Trading -> Risk Approval -> Transaction Simulation -> Isolated Signer -> Solana
 ```
 
-## Current release
+## Current status
 
-Phase A/B contains:
+The repository contains the research/backtesting foundation for historical data validation, deterministic execution modeling, portfolio accounting, walk-forward OOS evaluation, stress testing, seeded statistical robustness, stateful paper trading, idempotent paper persistence, fail-closed configuration and CI security controls.
 
-- TypeScript monorepo structure
-- strict compiler configuration
-- validated environment configuration
-- PostgreSQL + Redis Docker services
-- structured logging
-- DEX Screener client abstraction
-- normalized token-pair model
-- conservative eligibility filtering
-- unit tests for initial eligibility rules
-- paper-trading-only configuration
+The dashboard is **not** the validation authority. It must consume evidence and show **NOT VALIDATED** whenever required evidence is missing or failed.
 
 ## Safety principles
 
-1. Missing or stale data is not treated as safe.
-2. Hard rejection rules can veto a high composite score.
-3. Live trading must remain disabled until safety, backtesting, paper trading and risk controls are validated.
-4. Private keys and secrets must never be committed.
-5. External API responses are parsed into internal types before use.
-6. Every trade decision should be explainable and auditable.
+1. Missing, stale, malformed or out-of-order data is never silently treated as safe.
+2. Hard deterministic risk controls can veto a model signal.
+3. Optimization is isolated from out-of-sample evaluation.
+4. Research results require provenance and reproducible configuration.
+5. Private keys are forbidden in PAPER mode and are never committed.
+6. LLM/model output, client requests and dashboard state cannot bypass server-side risk controls.
+7. Live execution remains disabled until a separate security, key-management, paper-trading and human-authorization gate passes.
 
-## Requirements
+## Pre-dashboard readiness gate
 
-- Node.js 20+
-- npm 10+
-- Docker / Docker Compose
-- A Solana RPC endpoint for expanded on-chain analysis
+See `docs/pre-dashboard-readiness.md`. The gate requires code controls **and actual evidence** from an exact release commit: clean data, multiple OOS windows, train-only optimization, parameter stability, all stress scenarios, deterministic bootstrap/Monte Carlo results, accepted paper trading, security/dependency checks, reproducible machine-readable artifacts, and green CI.
 
-## Setup
-
-```bash
-git clone https://github.com/rojandhimal/solana-alpha-trading-bot.git
-cd solana-alpha-trading-bot
-npm install
-cp .env.example .env
-docker compose up -d
-```
-
-Then verify PostgreSQL and Redis:
-
-```bash
-docker compose ps
-```
-
-## Environment
-
-Copy `.env.example` to `.env` and update values as required.
-
-Important defaults:
-
-```env
-TRADING_MODE=PAPER
-MIN_LIQUIDITY_USD=100000
-MIN_VOLUME_24H_USD=500000
-MIN_SIGNAL_SCORE=80
-```
-
-Do not populate `SOLANA_PRIVATE_KEY` during Phase A/B.
+A provider outage or unavailable historical period is a failure of evidence, not a pass. The fixed 2025 DEX experiment must use a legitimate provider with the required historical coverage; no API bypass or fabricated data is acceptable.
 
 ## Development commands
 
 ```bash
-npm run build
+npm ci
+npm run typecheck
 npm test
-npm run format
+npm run build
+npm run research:solana:binance
 ```
 
-Scanner development will be enabled as the workspace applications are expanded.
+## Data-provider roles
+
+- **DEX research:** GeckoTerminal/Birdeye sources are intended for DEX-specific historical research where the provider legitimately supplies the required period.
+- **SOL benchmark:** Binance SOLUSDT is a clearly labeled CEX benchmark, not a substitute for Raydium/DEX performance.
+- **Production discovery/on-chain:** Solana RPC and discovery providers are separate from historical benchmark evidence.
 
 ## Roadmap
 
-### Phase A - Foundation
+### Completed before dashboard
 
-- configuration
-- logging
-- database
-- Redis
-- testing
-- Docker
+- historical data abstraction and quality validation
+- deterministic baseline backtesting
+- walk-forward OOS evaluation
+- anti-overfitting inner validation and deterministic selection
+- execution/portfolio/risk invariants
+- stress testing
+- bootstrap and seeded Monte Carlo robustness
+- stateful paper trading and idempotent persistence contract
+- security threat model, secret checks and dependency audit
+- reproducible research artifact pipeline
+- final pre-dashboard evidence gate
 
-### Phase B - Market data
+### Next: Read-only dashboard
 
-- token discovery
-- pair discovery
-- price/volume/liquidity snapshots
-- data quality checks
+The dashboard may visualize research evidence and paper-trading telemetry only after the pre-dashboard gate is genuinely green. It must not provide a path to live execution.
 
-### Phase C - Safety
+### Later: Live execution
 
-- SPL Token / Token-2022 inspection
-- mint and freeze authority checks
-- extension analysis
-- holder concentration
-- developer wallet analysis
-- liquidity and exit simulation
-
-### Phase D - Intelligence
-
-- momentum
-- buy/sell pressure
-- wallet reputation
-- smart-money tracking
-- market regime
-- 0-100 composite scoring
-- confidence and data-quality scores
-
-### Phase E - Paper trading
-
-- simulated wallet
-- entries/exits
-- fees
-- slippage
-- stop loss
-- take profit
-- trailing stop
-- portfolio accounting
-
-### Phase F - Research
-
-- historical replay
-- walk-forward validation
-- out-of-sample testing
-- parameter stability
-- drawdown and expectancy analysis
-
-### Phase G - Live execution
-
-Only after validation:
-
-- transaction simulation
-- dynamic slippage controls
-- Jupiter execution
-- wallet isolation
-- emergency kill switch
-- live monitoring
+Live execution is a separate project phase requiring transaction simulation, dynamic slippage controls, wallet isolation, secret-manager integration, emergency kill switch, independent security review, accepted paper trading and explicit human authorization.
 
 ## Risk disclaimer
 
-This software is an engineering and research project, not financial advice. Automated trading can lose the entire trading balance. A high score is not a guarantee of a profitable trade.
-
-## License
-
-TBD
+This software is an engineering and research project, not financial advice. Automated trading can lose the entire trading balance. Historical or paper performance does not guarantee future results.

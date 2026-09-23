@@ -23,11 +23,15 @@ export function analyzeParameterStability(input: ParameterStabilityInput): Param
   if (!Number.isFinite(spreadThreshold) || spreadThreshold < 0) throw new Error("stabilitySpreadThresholdPct must be non-negative");
   const minTrades = input.minTrades ?? 0;
   if (!Number.isInteger(minTrades) || minTrades < 0) throw new Error("minTrades must be a non-negative integer");
-  const candidates = input.candidates.map((candidate) => {
-    const strategyConfig = input.execution === undefined ? { quantity: input.quantity, strategy: candidate.strategy } : { quantity: input.quantity, strategy: candidate.strategy, execution: input.execution };
-    const backtest = runBacktestPipeline({ candles: input.candles, initialCapital: input.initialCapital, strategy: strategyConfig, stressScenarios: input.stressScenarios, robustnessThresholds: input.robustnessThresholds });
-    return { candidate, backtest, riskAdjustedScore: calculateParameterStabilityScore(backtest.metrics, input.initialCapital), rank: 0 };
-  }).filter((result) => result.backtest.metrics.tradeCount >= minTrades).sort((a, b) => b.riskAdjustedScore - a.riskAdjustedScore).map((result, index) => ({ ...result, rank: index + 1 }));
+  const candidates = input.candidates
+    .map((candidate) => {
+      const strategyConfig = input.execution === undefined ? { quantity: input.quantity, strategy: candidate.strategy } : { quantity: input.quantity, strategy: candidate.strategy, execution: input.execution };
+      const backtest = runBacktestPipeline({ candles: input.candles, initialCapital: input.initialCapital, strategy: strategyConfig, stressScenarios: input.stressScenarios, robustnessThresholds: input.robustnessThresholds });
+      return { candidate, backtest, riskAdjustedScore: calculateParameterStabilityScore(backtest.metrics, input.initialCapital), rank: 0 };
+    })
+    .filter((result) => result.backtest.metrics.tradeCount >= minTrades)
+    .sort((a, b) => b.riskAdjustedScore - a.riskAdjustedScore)
+    .map((result, index) => ({ ...result, rank: index + 1 }));
   const best = candidates[0];
   const scores = candidates.map((candidate) => candidate.riskAdjustedScore);
   const minScore = scores.length > 0 ? Math.min(...scores) : 0;

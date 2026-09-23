@@ -4,6 +4,7 @@ import type { StrategyCandle } from "./alpha-strategy.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
 import { generateStrategyFills } from "./strategy-execution-adapter.js";
 import type { PaperTradingRiskLimits } from "./paper-trading-session.js";
+
 export interface PaperTradingSnapshot { candleCount: number; fillCount: number; accounting: PortfolioAccountingResult; risk: { halted: boolean; reasons: string[]; maxObservedDrawdownPct: number; maxObservedPositionNotionalPct: number }; }
 export interface PaperTradingStateConfig { initialCapital: number; execution: StrategyExecutionConfig; riskLimits?: Partial<PaperTradingRiskLimits>; allowShort?: boolean; }
 function accountingFor(candles: readonly StrategyCandle[], fills: readonly ExecutionFill[], initialCapital: number, allowShort: boolean | undefined): PortfolioAccountingResult { return allowShort === undefined ? accountFills(candles, fills, initialCapital) : accountFills(candles, fills, initialCapital, { allowShort }); }

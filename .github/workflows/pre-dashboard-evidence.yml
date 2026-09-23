@@ -26,21 +26,29 @@ jobs:
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@v5
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: package-lock.json
+
       - name: Install dependencies
-        run: npm install --include=dev --package-lock=false
+        run: npm ci --include=dev
+
       - name: Typecheck
         run: npm run typecheck
+
       - name: Full test suite
         run: npm test
+
       - name: Build
         run: npm run build
+
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
       - name: Secret pattern check
         shell: bash
         run: |
@@ -49,8 +57,12 @@ jobs:
             echo 'Potential secret material found in tracked files.'
             exit 1
           fi
+
       - name: Verify PAPER mode has no signing key
         run: |
           node --input-type=module -e "process.env.DATABASE_URL='postgresql://ci'; process.env.REDIS_URL='redis://ci'; process.env.SOLANA_RPC_URL='https://rpc.invalid'; process.env.DEXSCREENER_BASE_URL='https://api.invalid'; process.env.TRADING_MODE='PAPER'; process.env.ENABLE_LIVE_TRADING='false'; delete process.env.SOLANA_PRIVATE_KEY; await import('./dist/packages/config/src/index.js'); console.log('PAPER fail-closed config OK')"
-      - name: Verify reproducible benchmark entrypoint builds
-        run: test -f dist/apps/research/src/solana-binance-benchmark.js
+
+      - name: Verify benchmark entrypoints build
+        run: |
+          test -f dist/apps/research/src/solana-historical-experiment.js
+          test -f dist/apps/research/src/solana-binance-benchmark.js

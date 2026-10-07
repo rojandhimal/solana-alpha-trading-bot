@@ -155,7 +155,7 @@ export function optimizeAlphaStrategy(trainCandles: readonly Candle[], base: Str
     const fit = runCandidate(selectionCandles, base, strategy, initialCapital);
     if (fit.metrics.tradeCount < minTrades) continue;
     const validation = runCandidate(validationCandles, base, strategy, initialCapital);
-    if (validation.metrics.tradeCount === 0) continue;
+    if (minTrades > 0 && validation.metrics.tradeCount < minTrades) continue;
     if (validation.metrics.profitFactor < minProfitFactor) continue;
     if (validation.metrics.expectancy < minExpectancy) continue;
 

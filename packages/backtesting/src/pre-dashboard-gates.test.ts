@@ -29,7 +29,7 @@ function result(returns: number[]): WalkForwardPipelineResult {
   }));
   return {
     windows,
-    outOfSampleTrades: windows.flatMap((window) => window.test.trades),
+    outOfSampleTrades: [],
     outOfSample: {
       totalReturnPct: returns.reduce((a, b) => a + b, 0),
       netProfit: returns.reduce((a, b) => a + b, 0),

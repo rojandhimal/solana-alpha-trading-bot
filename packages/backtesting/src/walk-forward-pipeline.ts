@@ -115,10 +115,6 @@ function calculateConsistency(windows: readonly WalkForwardPipelineWindow[]): Wa
   };
 }
 
-export function aggregateWalkForwardOutOfSampleMetrics(windows: readonly { test: BacktestPipelineResult }[]): PerformanceMetrics {
-  return aggregateOutOfSampleMetrics(windows);
-}
-
 export function runWalkForwardPipeline(input: WalkForwardPipelineInput): WalkForwardPipelineResult {
   const { candles: inputCandles, walkForward, strategyOptimizer, strategy: baseStrategy, ...pipelineConfig } = input;
   const windows = createWalkForwardWindows(inputCandles.length, walkForward).map((window) => {

@@ -1,4 +1,4 @@
-export interface StrategyCandle { open: number; high: number; low: number; close: number; volume: number; }
+export interface StrategyCandle { open: number; high: number; low: number; close: number; volume: number; timestamp?: number; }
 export interface StrategyFeatures { fastEma: number; slowEma: number; rsi: number; atr: number; momentumPct: number; volumeRatio: number; }
 export type SignalSide = "LONG" | "SHORT" | "FLAT";
 export interface StrategySignal { side: SignalSide; score: number; features: StrategyFeatures; }

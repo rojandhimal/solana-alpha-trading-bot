@@ -1,0 +1,150 @@
+name: SOL Historical Research
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feature/walk-forward-integration']
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  REDIS_URL: redis://localhost:6379
+  SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
+  DEXSCREENER_BASE_URL: https://api.dexscreener.com
+  TRADING_MODE: PAPER
+  ENABLE_LIVE_TRADING: 'false'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev
+      - name: Ensure pinned test runner is installed
+        run: npm install --no-save --include=dev vitest@2.1.8
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  gecko-dex-diagnostic:
+    needs: validate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev
+      - name: Build
+        run: npm run build
+      - name: Run SOL DEX historical experiment
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          if npm run research:solana 2>&1 | tee /tmp/gecko-research.log; then
+            exit 0
+          fi
+          if grep -q "past 180 days" /tmp/gecko-research.log; then
+            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"GeckoTerminal public API","message":"The public API does not expose the requested 2025 history because it is beyond the provider 180-day window. No synthetic or substituted DEX data is used."}' > artifacts/solana-historical-experiment.json
+            exit 0
+          fi
+          exit 1
+        env:
+          SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
+      - name: Upload DEX diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-geckoterminal-diagnostic
+          path: artifacts/solana-historical-experiment.json
+          if-no-files-found: ignore
+
+  binance-benchmark:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feature/walk-forward-integration
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev
+      - name: Build
+        run: npm run build
+      - name: Run SOL 2025 Binance benchmark
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          if npm run research:solana:binance 2>&1 | tee /tmp/binance-research.log; then
+            exit 0
+          fi
+          if grep -q "HTTP 451" /tmp/binance-research.log && grep -q "restricted location" /tmp/binance-research.log; then
+            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"Binance public API","message":"The CI runner location is restricted by Binance eligibility policy. No substituted exchange data is used for the SOL benchmark."}' > artifacts/solana-binance-historical-experiment.json
+            exit 0
+          fi
+          exit 1
+        env:
+          SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
+      - name: Upload Binance benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-binance-historical-experiment
+          path: artifacts/solana-binance-historical-experiment.json
+          if-no-files-found: error
+
+  security:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --include=dev
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secret pattern check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[1-9A-HJ-NP-Za-km-z]{32,}' -- ':!.github/workflows/**'; then
+            echo 'Potential secret material found in tracked files.'
+            exit 1
+          fi

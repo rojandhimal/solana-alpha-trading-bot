@@ -16,6 +16,7 @@ env:
   SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
   DEXSCREENER_BASE_URL: https://api.dexscreener.com
   TRADING_MODE: PAPER
+  ENABLE_LIVE_TRADING: false
 
 jobs:
   quality:
@@ -28,9 +29,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --include=dev
+
+      - name: Ensure pinned test runner is installed
+        run: npm install --no-save --include=dev vitest@2.1.8
 
       - name: Typecheck
         run: npm run typecheck

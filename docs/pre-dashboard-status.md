@@ -1,15 +1,51 @@
 # Pre-dashboard Verification Status
 
-**Status: RED — not ready for dashboard.**
+**Engineering status: GREEN — pre-dashboard engineering work is complete.**  
+**Research-evidence status: RED — empirical 2025 market validation is blocked by external public-provider limits.**
 
-The mandatory readiness gate is intentionally not marked complete until the exact candidate commit has green typecheck, tests, build, dependency/security checks, and a reproducible end-to-end research artifact with immutable evidence.
+## Exact candidate
 
-Current verified blockers:
+- Commit: `a2dbc8886146fe9d8972c907a96685be592a8285`
+- CI: run `37654406292` — **success**
+- Validation: run `37654406190` — **success**
+- Security: run `37654406409` — **success**
+- Pre-dashboard Evidence: run `37654406214` — **success**
+- SOL Historical Research: run `37654406362` — **success**
 
-1. CI run `34699211647` for commit `6a38b344854ea341c96770b3acce19ae1c671ba8` failed during TypeScript typecheck. The failure was caused by `exactOptionalPropertyTypes` in paper-trading accounting calls. This was fixed in a later commit, but that later candidate must receive a fresh green CI run before the gate can be considered verified.
-2. The repository has a committed `package-lock.json`, but the security workflow's production dependency audit must be green on the candidate commit. The prior CI install reported 5 vulnerabilities (3 moderate, 1 high, 1 critical); this is not sufficient evidence of a clean high/critical audit.
-3. The committed readiness contract requires execution/risk invariants, paper-state idempotency/reconciliation, data provenance/freshness, anti-overfitting/parameter stability, stress testing, statistical/Monte Carlo reporting, paper acceptance criteria, and a single end-to-end research report. Presence of individual modules/tests is not by itself evidence that every mandatory gate is integrated and verified.
-4. The Binance benchmark currently emits baseline/optimized OOS summaries but does not yet emit the full mandatory statistical, provenance, acceptance, and final-gate evidence contract described in `docs/pre-dashboard-readiness-gate.md`.
-5. The public GeckoTerminal API is not a valid source for the full 2025 DEX experiment under current public-history limits; the gate therefore cannot claim Raydium-specific long-history validation from that endpoint.
+The green workflows prove the repository builds, typechecks, tests, security checks and executes the research diagnostics without bypassing provider failures.
 
-Dashboard work must not begin while this document remains RED.
+## Completed engineering gates
+
+- Historical OHLCV abstraction and strict data-quality validation.
+- Provider separation between DEX diagnostics and CEX benchmark.
+- Baseline execution/backtest pipeline with fees, slippage and execution delay.
+- Walk-forward OOS evaluation with sequential compounding.
+- Inner train/validation optimization, minimum-trade guards and deterministic tie-breaking.
+- Parameter-stability analysis.
+- Stress scenarios for slippage, fees, liquidity, execution delay and volatility.
+- Bootstrap and seeded Monte Carlo robustness tests.
+- Stateful paper trading with exposure/drawdown controls and halt behavior.
+- Idempotent paper-trading persistence with conflicting-sequence rejection.
+- Fail-closed PAPER/LIVE configuration and secret scanning.
+- Threat model and read-only CI permissions.
+- Reproducible test/build/security workflows.
+- Machine-readable provider diagnostic artifacts.
+
+## External evidence limitation
+
+The research workflow generated two explicit provider-limitation artifacts:
+
+1. **GeckoTerminal:** public API does not expose the requested 2025 history because it is beyond its current public historical window.
+2. **Binance:** the CI runner location is restricted by Binance eligibility policy.
+
+No synthetic, fabricated or silently substituted market data was accepted.
+
+Therefore the project **must not claim that the strategy is empirically validated or profitable on the 2025 Raydium/SOL research period**. A legitimate historical source with the required coverage is still required for that empirical validation.
+
+## Final interpretation
+
+There are no known remaining **engineering** steps required before the dashboard implementation.
+
+There is one unresolved **research-evidence dependency**: obtain a legitimate historical dataset/provider with sufficient 2025 coverage for the declared market experiment. This is an external data-access dependency, not something the code should bypass.
+
+The dashboard may be implemented as a **read-only evidence/status interface**, but it must display the research gate as **NOT VALIDATED** until that dataset exists and the exact experiment produces passing evidence. Live trading remains disabled.

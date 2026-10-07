@@ -47,7 +47,7 @@ function validateThresholds(thresholds: ResearchAcceptanceThresholds): void {
     !valid(thresholds.maxMonteCarlo95DrawdownPct) ||
     thresholds.maxOosDrawdownPct < 0 ||
     thresholds.minOosTradeCount < 0 ||
-
+    thresholds.minOosProfitFactor < 0 ||
     thresholds.minProfitableWindowPct < 0 ||
     thresholds.minProfitableWindowPct > 100 ||
     thresholds.minPassingStressScenarioRatePct < 0 ||

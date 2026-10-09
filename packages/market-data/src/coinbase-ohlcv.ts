@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
 
 const candleSchema = z.object({ start: z.union([z.string(), z.number()]), low: z.union([z.string(), z.number()]), high: z.union([z.string(), z.number()]), open: z.union([z.string(), z.number()]), close: z.union([z.string(), z.number()]), volume: z.union([z.string(), z.number()]) });
-const DEFAULT_BASE_URL = "https://api.exchange.coinbase.com";
+const DEFAULT_BASE_URL = "https://api.coinbase.com";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 const DEFAULT_PAGE_LIMIT = 350;

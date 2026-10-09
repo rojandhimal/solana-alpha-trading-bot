@@ -69,3 +69,14 @@ jobs:
         run: |
           test -f dist/apps/research/src/solana-historical-experiment.js
           test -f dist/apps/research/src/solana-binance-benchmark.js
+
+      # This is intentionally fail-closed: provider limitations are not research evidence.
+      - name: Require real DEX historical evidence
+        run: npm run research:solana
+        env:
+          SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
+
+      - name: Require real CEX benchmark evidence
+        run: npm run research:solana:binance
+        env:
+          SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json

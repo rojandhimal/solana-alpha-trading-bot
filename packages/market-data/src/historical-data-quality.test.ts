@@ -49,6 +49,7 @@ describe("historical data quality", () => {
     expect(report.invalidVolumeCount).toBe(1);
     expect(report.gapCount).toBe(1);
     expect(report.largestGapMs).toBe(120_000);
+    expect(report.gapTimestamps).toEqual([180_000]);
   });
 
   it("enforces requested range coverage when explicitly enabled", () => {

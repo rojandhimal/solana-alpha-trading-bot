@@ -45,7 +45,7 @@ If any item is missing, failed, unavailable or only asserted by documentation, r
 
 ## Current provider limitation
 
-The fixed 2025 DEX experiment requires historical coverage beyond the public GeckoTerminal window available at runtime. If the provider refuses that period, the DEX experiment remains a diagnostic failure and cannot be counted as evidence. A legitimate licensed historical source or another provider with the required coverage must supply the evidence dataset; no bypass or fabricated data is acceptable.
+The fixed 2025 DEX experiment requires historical coverage beyond the public GeckoTerminal window available at runtime. The public Binance endpoint is also restricted from the GitHub Actions runner location, so its diagnostic artifact correctly records a provider limitation rather than substituting data. A public Coinbase Exchange SOL-USD benchmark was added as an alternative, but its 2025 series currently contains an unresolved hourly gap ending at 2025-10-25T21:00:00Z; strict data-quality validation rejects the dataset. This is a genuine evidence blocker, not a code/test failure. Do not relax the gap threshold or synthesize a candle to force a pass. A legitimate provider with complete coverage, or a documented independently verified repair from an authoritative source, is required before the research evidence gate can pass.
 
 ## Live-trading gate
 

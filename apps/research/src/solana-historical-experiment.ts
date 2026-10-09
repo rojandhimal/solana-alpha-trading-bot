@@ -5,13 +5,15 @@ import {
   createSolHistoricalExperimentConfig,
   runHistoricalExperiment,
   summarizeHistoricalExperiment,
-  SOL_GECKOTERMINAL_POOL_ADDRESS
+  SOL_GECKOTERMINAL_POOL_ADDRESS,
+  evaluatePreDashboardGates
 } from "../../../packages/backtesting/src/index.js";
 
 const config = createSolHistoricalExperimentConfig();
 const source = new GeckoTerminalOhlcvSource({ poolAddress: SOL_GECKOTERMINAL_POOL_ADDRESS });
 const result = await runHistoricalExperiment(source, config);
 const summary = summarizeHistoricalExperiment(result);
+const preDashboardGates = evaluatePreDashboardGates({ baseline: result.baseline, optimized: result.optimized });
 
 const outputPath = process.env.SOL_EXPERIMENT_OUTPUT?.trim() || "solana-historical-experiment.json";
 await writeFile(outputPath, JSON.stringify({
@@ -19,6 +21,7 @@ await writeFile(outputPath, JSON.stringify({
   dataSource: "GeckoTerminal",
   poolAddress: SOL_GECKOTERMINAL_POOL_ADDRESS,
   summary,
+  preDashboardGates,
   dataset: result.dataset,
   baseline: {
     outOfSample: result.baseline.outOfSample,
@@ -34,3 +37,7 @@ await writeFile(outputPath, JSON.stringify({
 
 console.log(JSON.stringify(summary, null, 2));
 console.log(`Experiment report written to ${outputPath}`);
+if (!preDashboardGates.passed) {
+  console.error(`Pre-dashboard research gates failed: ${preDashboardGates.reasons.join(", ")}`);
+  process.exitCode = 1;
+}

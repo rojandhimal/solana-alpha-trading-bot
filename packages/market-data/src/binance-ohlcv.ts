@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
 
 const klineSchema = z.array(z.unknown()).min(8);
-const DEFAULT_BASE_URL = "https://api.binance.com";
+const DEFAULT_BASE_URL = "https://data-api.binance.vision";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 250;
 const DEFAULT_PAGE_LIMIT = 1000;

@@ -219,3 +219,16 @@ At each meaningful implementation session:
 **Validation status:** Regression tests were added, but no CI result for commit 0c966c771651087c2fd834a3c762c4e46549cc7a was available at journal update time. Do not claim the new tests passed until a current run confirms it.
 
 **Remaining concerns:** The bootstrap interval is an ordinary IID resampling interval for a mean; it does not preserve serial dependence or regime clustering. The trade-sequence Monte Carlo resamples individual trades IID and therefore estimates order/sampling sensitivity under that assumption, not realistic market paths. Publication claims must name these assumptions and should compare with block/bootstrap or regime-aware methods before claiming robust uncertainty estimates.
+
+
+### Entry 2026-10-10 — Paper risk-halt position-flip invariant
+
+**Issue identified:** The stateful paper-trading engine previously filtered post-halt fills by side alone. If strategy execution emitted a close and a new opposite-side entry in the same candle, both fills could share the reducing side, allowing a close-and-reverse sequence despite the halt. The same flaw could affect the exposure-cap rejection path.
+
+**Change:** Commit 57f937c4d7d0a80acdf809c2355ea4dd970f002b added selectRiskReducingFills, which simulates the position quantity through the candidate fill sequence and accepts a fill only when it strictly reduces absolute exposure. Commit eca7efa43dada32996cd84f53dc53c7940054164 added regression coverage for long close-versus-short flip, short close-versus-long flip, and flat-position behavior.
+
+**Safety effect:** A halted or over-limit state can accept a reducing close, but must not accept the subsequent fill that would open exposure in the opposite direction. This is a deterministic simulation guard, not a broker-side kill switch.
+
+**Validation status:** The code and regression test are committed. The combined-status lookup did not yet expose a CI status for commit eca7efa43dada32996cd84f53dc53c7940054164. Mark as pending CI verification, not passed.
+
+**Pre-dashboard status:** Still OPEN / NOT PASSED. Other stateful execution, persistence/replay, data provenance, optimizer validation, statistical assumptions, dependency audit, and end-to-end experiment evidence remain outstanding.

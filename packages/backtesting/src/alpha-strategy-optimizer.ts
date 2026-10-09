@@ -31,13 +31,15 @@ export interface AlphaStrategyOptimizationResult {
   expectancy: number;
 }
 
+// Keep the default search deliberately compact for repeatable CI research runs.
+// Callers can expand the grid explicitly when they have sufficient compute budget.
 const DEFAULT_GRID = {
   fastPeriods: [5, 10, 15],
-  slowPeriods: [20, 30, 40],
+  slowPeriods: [20, 30],
   rsiPeriods: [10, 14],
   momentumPeriods: [5, 10],
-  atrPeriods: [10, 14],
-  volumePeriods: [10, 20],
+  atrPeriods: [14],
+  volumePeriods: [20],
   entryThresholds: [0.4, 0.5, 0.6]
 } as const;
 

@@ -68,7 +68,7 @@ jobs:
       - name: Verify benchmark entrypoints build
         run: |
           test -f dist/apps/research/src/solana-historical-experiment.js
-          test -f dist/apps/research/src/solana-binance-benchmark.js
+          test -f dist/apps/research/src/solana-coinbase-benchmark.js
 
       # This is intentionally fail-closed: provider limitations are not research evidence.
       - name: Require real DEX historical evidence
@@ -77,6 +77,6 @@ jobs:
           SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
 
       - name: Require real CEX benchmark evidence
-        run: npm run research:solana:binance
+        run: npm run research:solana:coinbase
         env:
-          SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
+          SOL_COINBASE_EXPERIMENT_OUTPUT: artifacts/solana-coinbase-historical-experiment.json

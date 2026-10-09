@@ -82,7 +82,7 @@ jobs:
           path: artifacts/solana-historical-experiment.json
           if-no-files-found: ignore
 
-  binance-benchmark:
+  coinbase-benchmark:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -99,26 +99,15 @@ jobs:
         run: npm install --include=dev --ignore-scripts
       - name: Build
         run: npm run build
-      - name: Run SOL 2025 Binance benchmark
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p artifacts
-          if npm run research:solana:binance 2>&1 | tee /tmp/binance-research.log; then
-            exit 0
-          fi
-          if grep -q "HTTP 451" /tmp/binance-research.log && grep -q "restricted location" /tmp/binance-research.log; then
-            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"Binance public API","message":"The CI runner location is restricted by Binance eligibility policy. No substituted exchange data is used for the SOL benchmark."}' > artifacts/solana-binance-historical-experiment.json
-            exit 0
-          fi
-          exit 1
+      - name: Run SOL 2025 Coinbase benchmark
+        run: npm run research:solana:coinbase
         env:
-          SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
-      - name: Upload Binance benchmark
+          SOL_COINBASE_EXPERIMENT_OUTPUT: artifacts/solana-coinbase-historical-experiment.json
+      - name: Upload Coinbase benchmark
         uses: actions/upload-artifact@v4
         with:
-          name: solana-binance-historical-experiment
-          path: artifacts/solana-binance-historical-experiment.json
+          name: solana-coinbase-historical-experiment
+          path: artifacts/solana-coinbase-historical-experiment.json
           if-no-files-found: error
 
   security:

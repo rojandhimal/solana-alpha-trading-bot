@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "research:solana": "node dist/apps/research/src/solana-historical-experiment.js",
-    "research:solana:binance": "node dist/apps/research/src/solana-binance-benchmark.js"
+    "research:solana:binance": "node dist/apps/research/src/solana-binance-benchmark.js",
+    "research:solana:coinbase": "node dist/apps/research/src/solana-coinbase-benchmark.js"
   },
   "engines": {
     "node": ">=20"

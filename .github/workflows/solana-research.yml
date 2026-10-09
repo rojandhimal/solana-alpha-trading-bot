@@ -100,15 +100,25 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Coinbase benchmark
-        run: npm run research:solana:coinbase
+        shell: bash
+        run: |
+          set +e
+          mkdir -p artifacts
+          npm run research:solana:coinbase 2>&1 | tee /tmp/coinbase-research.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const log = readFileSync("/tmp/coinbase-research.log", "utf8"); writeFileSync("artifacts/solana-coinbase-historical-experiment.json", JSON.stringify({ status: "NOT_VALIDATED", provider: "Coinbase Advanced Trade public candles", error: log.slice(-4000) }, null, 2) + "\\n");'
+            exit "$status"
+          fi
         env:
           SOL_COINBASE_EXPERIMENT_OUTPUT: artifacts/solana-coinbase-historical-experiment.json
       - name: Upload Coinbase benchmark
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: solana-coinbase-historical-experiment
           path: artifacts/solana-coinbase-historical-experiment.json
-          if-no-files-found: error
+          if-no-files-found: ignore
 
   security:
     needs: validate

@@ -20,6 +20,7 @@ export interface MonteCarloSummary {
 function validateReturns(returns: readonly number[]): void {
   if (returns.length < 2) throw new Error("at least two returns are required");
   if (returns.some((value) => !Number.isFinite(value))) throw new Error("returns must be finite");
+  if (returns.some((value) => value <= -100)) throw new Error("returns must be greater than -100 percent");
 }
 
 function quantile(values: readonly number[], q: number): number {
@@ -51,6 +52,7 @@ export function bootstrapMeanConfidenceInterval(
   const confidencePct = options.confidencePct ?? 95;
   const seed = options.seed ?? 42;
   if (!Number.isInteger(samples) || samples < 100) throw new Error("samples must be an integer >= 100");
+  if (!Number.isInteger(seed) || !Number.isFinite(seed)) throw new Error("seed must be a finite integer");
   if (!Number.isFinite(confidencePct) || confidencePct <= 0 || confidencePct >= 100) throw new Error("confidencePct must be between 0 and 100");
   const random = mulberry32(seed);
   const estimates: number[] = [];
@@ -72,6 +74,7 @@ export function monteCarloTradeSequence(
   const simulations = options.simulations ?? 5000;
   const seed = options.seed ?? 42;
   if (!Number.isInteger(simulations) || simulations < 100) throw new Error("simulations must be an integer >= 100");
+  if (!Number.isInteger(seed) || !Number.isFinite(seed)) throw new Error("seed must be a finite integer");
   const random = mulberry32(seed);
   const finalReturns: number[] = [];
   const drawdowns: number[] = [];

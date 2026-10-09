@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
 
-const candleSchema = z.array(z.unknown()).length(6);
+const candleSchema = z.object({ start: z.union([z.string(), z.number()]), low: z.union([z.string(), z.number()]), high: z.union([z.string(), z.number()]), open: z.union([z.string(), z.number()]), close: z.union([z.string(), z.number()]), volume: z.union([z.string(), z.number()]) });
 const DEFAULT_BASE_URL = "https://api.exchange.coinbase.com";
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
-const DEFAULT_PAGE_LIMIT = 300;
+const DEFAULT_PAGE_LIMIT = 350;
 const DEFAULT_USER_AGENT = "solana-alpha-trading-bot/0.1";
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -36,8 +36,8 @@ export class CoinbaseOhlcvSource implements HistoricalDataSource {
     if (options.retryBaseDelayMs !== undefined && (!Number.isFinite(options.retryBaseDelayMs) || options.retryBaseDelayMs < 0)) {
       throw new Error("retryBaseDelayMs must be non-negative");
     }
-    if (options.pageLimit !== undefined && (!Number.isInteger(options.pageLimit) || options.pageLimit <= 0 || options.pageLimit > 300)) {
-      throw new Error("pageLimit must be an integer between 1 and 300");
+    if (options.pageLimit !== undefined && (!Number.isInteger(options.pageLimit) || options.pageLimit <= 0 || options.pageLimit > 350)) {
+      throw new Error("pageLimit must be an integer between 1 and 350");
     }
 
     this.productId = options.productId.trim().toUpperCase();
@@ -70,10 +70,11 @@ export class CoinbaseOhlcvSource implements HistoricalDataSource {
 
     while (cursor <= endTime) {
       const pageEnd = Math.min(endTime, cursor + (this.pageLimit - 1) * HOUR_MS);
-      const url = new URL(`${this.baseUrl}/products/${encodeURIComponent(this.productId)}/candles`);
-      url.searchParams.set("granularity", "3600");
-      url.searchParams.set("start", new Date(cursor).toISOString());
-      url.searchParams.set("end", new Date(pageEnd).toISOString());
+      const url = new URL(`${this.baseUrl}/api/v3/brokerage/market/products/${encodeURIComponent(this.productId)}/candles`);
+      url.searchParams.set("granularity", "ONE_HOUR");
+      url.searchParams.set("start", String(Math.floor(cursor / 1000)));
+      url.searchParams.set("end", String(Math.floor(pageEnd / 1000)));
+      url.searchParams.set("limit", String(this.pageLimit));
 
       const page = await this.fetchPage(url);
       for (const bar of page) {
@@ -99,8 +100,10 @@ export class CoinbaseOhlcvSource implements HistoricalDataSource {
       });
       if (response.ok) {
         const payload: unknown = await response.json();
-        if (!Array.isArray(payload)) throw new Error("Coinbase OHLCV response must be an array");
-        return payload.map((row) => toOhlcvBar(candleSchema.parse(row)));
+        if (payload === null || typeof payload !== "object" || !("candles" in payload) || !Array.isArray((payload as { candles?: unknown }).candles)) {
+          throw new Error("Coinbase public OHLCV response must contain a candles array");
+        }
+        return ((payload as { candles: unknown[] }).candles).map((row) => toOhlcvBar(candleSchema.parse(row)));
       }
 
       if ((response.status !== 429 && response.status < 500) || attempt >= this.maxRetries) {
@@ -119,13 +122,13 @@ export class CoinbaseOhlcvSource implements HistoricalDataSource {
   }
 }
 
-function toOhlcvBar(row: readonly unknown[]): OhlcvBar {
-  const timestampSeconds = toFiniteNumber(row[0]);
-  const low = toFiniteNumber(row[1]);
-  const high = toFiniteNumber(row[2]);
-  const open = toFiniteNumber(row[3]);
-  const close = toFiniteNumber(row[4]);
-  const volume = toFiniteNumber(row[5]);
+function toOhlcvBar(row: { start: string | number; low: string | number; high: string | number; open: string | number; close: string | number; volume: string | number }): OhlcvBar {
+  const timestampSeconds = toFiniteNumber(row.start);
+  const low = toFiniteNumber(row.low);
+  const high = toFiniteNumber(row.high);
+  const open = toFiniteNumber(row.open);
+  const close = toFiniteNumber(row.close);
+  const volume = toFiniteNumber(row.volume);
   const timestamp = timestampSeconds * 1000;
 
   if (timestamp <= 0 || open <= 0 || high <= 0 || low <= 0 || close <= 0 || volume < 0) {

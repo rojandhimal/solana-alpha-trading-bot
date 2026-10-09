@@ -199,3 +199,12 @@ At each meaningful implementation session:
 4. Attach or link machine-readable experiment artifacts; do not copy unsupported performance claims into prose.
 5. Update the outstanding-work list, marking an item complete only with verifiable evidence.
 6. Keep the pre-dashboard gate open until all mandatory checks pass; report blockers explicitly.
+
+
+### Entry 2026-10-10 — CI verification follow-up
+
+**Evidence checked:** GitHub Actions run 34699211647 (workflow job “quality”, associated with commit 6a38b344854ea341c96770b3acce19ae1c671ba8) completed successfully. The recorded steps for setup, dependency installation, typecheck, tests, and build all show success. This confirms the quality job for that specific commit, not for every later commit and not the separate dependency-audit/security workflow.
+
+**Interpretation:** The exact-optional-property type errors recorded above were corrected sufficiently for that quality job to pass. The journal-only commit that created this document has no combined commit status yet. A green quality job does not resolve previously reported npm audit vulnerabilities, prove a successful full-year historical experiment, or pass the overall pre-dashboard gate.
+
+**Still required:** Verify the current branch head's latest workflow outcomes; obtain the actual security/dependency-audit result; run or retrieve an end-to-end experiment artifact; complete the paper-state and idempotency tests; and document actual statistical robustness outputs. Keep the gate OPEN until all required evidence is present.

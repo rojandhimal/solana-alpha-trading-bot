@@ -9,8 +9,15 @@ describe("statistical robustness", () => {
     );
   });
 
-  it("rejects insufficient samples", () => {
+  it("rejects insufficient samples and impossible simple returns", () => {
     expect(() => bootstrapMeanConfidenceInterval([1])).toThrow("at least two returns");
+    expect(() => bootstrapMeanConfidenceInterval([1, -100])).toThrow("greater than -100 percent");
+    expect(() => monteCarloTradeSequence([1, -100])).toThrow("greater than -100 percent");
+  });
+
+  it("validates deterministic seeds", () => {
+    expect(() => bootstrapMeanConfidenceInterval([1, 2], { seed: Number.NaN })).toThrow("seed must be a finite integer");
+    expect(() => monteCarloTradeSequence([1, 2], { seed: 1.5 })).toThrow("seed must be a finite integer");
   });
 
   it("produces deterministic Monte Carlo risk estimates", () => {

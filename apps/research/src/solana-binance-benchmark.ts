@@ -4,7 +4,8 @@ import { BinanceOhlcvSource } from "../../../packages/market-data/src/binance-oh
 import {
   createSolHistoricalExperimentConfig,
   runHistoricalExperiment,
-  summarizeHistoricalExperiment
+  summarizeHistoricalExperiment,
+  evaluatePreDashboardGates
 } from "../../../packages/backtesting/src/index.js";
 
 const config = createSolHistoricalExperimentConfig();
@@ -16,6 +17,7 @@ const result = await runHistoricalExperiment(source, {
   query: { ...config.query, symbol: binanceSymbol }
 });
 const summary = summarizeHistoricalExperiment(result);
+const preDashboardGates = evaluatePreDashboardGates({ baseline: result.baseline, optimized: result.optimized });
 
 const outputPath = process.env.SOL_BINANCE_EXPERIMENT_OUTPUT?.trim() || "solana-binance-historical-experiment.json";
 await writeFile(outputPath, JSON.stringify({
@@ -25,6 +27,7 @@ await writeFile(outputPath, JSON.stringify({
   quoteCurrency: "USDT",
   volumeSemantics: "quote-volume (USDT)",
   summary,
+  preDashboardGates,
   dataset: result.dataset,
   baseline: {
     outOfSample: result.baseline.outOfSample,
@@ -40,3 +43,7 @@ await writeFile(outputPath, JSON.stringify({
 
 console.log(JSON.stringify(summary, null, 2));
 console.log(`Binance benchmark report written to ${outputPath}`);
+if (!preDashboardGates.passed) {
+  console.error(`Pre-dashboard research gates failed: ${preDashboardGates.reasons.join(", ")}`);
+  process.exitCode = 1;
+}

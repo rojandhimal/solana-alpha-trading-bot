@@ -6,15 +6,25 @@ export type StrategyPosition = "LONG" | "SHORT" | "FLAT";
 export interface StatefulStrategyFills { fills: ExecutionFill[]; finalPosition: StrategyPosition; }
 
 const DEFAULT_EXECUTION: ExecutionModelParameters = { executionDelayBars: 0, slippagePct: 0.1, feePct: 0.1, liquidityMultiplier: 1, volatilityMultiplier: 1 };
+const DEFAULT_STRATEGY: AlphaStrategyConfig = { fastPeriod: 10, slowPeriod: 30, rsiPeriod: 14, momentumPeriod: 10, atrPeriod: 14, volumePeriod: 20, entryThreshold: 0.5 };
+
+function requiredHistoryLength(strategy: AlphaStrategyConfig): number {
+  return Math.max(strategy.slowPeriod * 3, strategy.rsiPeriod + 1, strategy.momentumPeriod + 1, strategy.atrPeriod + 1, strategy.volumePeriod);
+}
 
 export function generateStrategyFillsWithState(candles: readonly StrategyCandle[], config: StrategyExecutionConfig, initialPosition: StrategyPosition = "FLAT"): StatefulStrategyFills {
   if (!Number.isFinite(config.quantity) || config.quantity <= 0) throw new Error("quantity must be positive");
   const execution = { ...DEFAULT_EXECUTION, ...config.execution };
   const executionCandles: Candle[] = candles.map(({ open, high, low, close }) => ({ open, high, low, close }));
+  const strategy = config.strategy ?? DEFAULT_STRATEGY;
+  const historyLength = requiredHistoryLength(strategy);
   const fills: ExecutionFill[] = [];
   let position: StrategyPosition = initialPosition;
   for (let index = 0; index < candles.length; index += 1) {
-    const signal = generateSignal(candles.slice(0, index + 1), config.strategy);
+    // Every feature uses a bounded lookback. Avoid copying/recalculating the full prefix
+    // for every bar; this keeps grid-search walk-forward runs tractable without changing signals.
+    const historyStart = Math.max(0, index + 1 - historyLength);
+    const signal = generateSignal(candles.slice(historyStart, index + 1), strategy);
     const target = signal.side;
     if (target === position) continue;
     if (position !== "FLAT") {

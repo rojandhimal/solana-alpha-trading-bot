@@ -208,3 +208,14 @@ At each meaningful implementation session:
 **Interpretation:** The exact-optional-property type errors recorded above were corrected sufficiently for that quality job to pass. The journal-only commit that created this document has no combined commit status yet. A green quality job does not resolve previously reported npm audit vulnerabilities, prove a successful full-year historical experiment, or pass the overall pre-dashboard gate.
 
 **Still required:** Verify the current branch head's latest workflow outcomes; obtain the actual security/dependency-audit result; run or retrieve an end-to-end experiment artifact; complete the paper-state and idempotency tests; and document actual statistical robustness outputs. Keep the gate OPEN until all required evidence is present.
+
+
+### Entry 2026-10-10 — Statistical robustness input validation
+
+**Code changes:** Commit e7137f32aef41bd70a00a1ed8f440f710fe73c41 hardened packages/backtesting/src/statistical-robustness.ts. Both bootstrap confidence-interval and Monte Carlo trade-sequence functions now reject non-finite/non-integer seeds. Shared return validation now rejects simple returns at or below -100%, which are invalid for the multiplicative equity compounding model used here. Commit 0c966c771651087c2fd834a3c762c4e46549cc7a added regression tests for impossible returns and invalid seeds.
+
+**Methodological reason:** Monte Carlo equity is compounded as equity × (1 + return/100). Accepting a trade return of -100% or lower can zero out or invert equity and makes subsequent drawdown interpretation invalid. Fixed-seed validation supports reproducibility. This is an input-integrity fix, not evidence that the strategy is statistically significant.
+
+**Validation status:** Regression tests were added, but no CI result for commit 0c966c771651087c2fd834a3c762c4e46549cc7a was available at journal update time. Do not claim the new tests passed until a current run confirms it.
+
+**Remaining concerns:** The bootstrap interval is an ordinary IID resampling interval for a mean; it does not preserve serial dependence or regime clustering. The trade-sequence Monte Carlo resamples individual trades IID and therefore estimates order/sampling sensitivity under that assumption, not realistic market paths. Publication claims must name these assumptions and should compare with block/bootstrap or regime-aware methods before claiming robust uncertainty estimates.

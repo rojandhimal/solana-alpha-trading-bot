@@ -43,7 +43,7 @@ The dashboard is **not** the validation authority. It must consume evidence and 
 
 See `docs/pre-dashboard-readiness.md`. The gate requires code controls **and actual evidence** from an exact release commit: clean data, multiple OOS windows, train-only optimization, parameter stability, all stress scenarios, deterministic bootstrap/Monte Carlo results, accepted paper trading, security/dependency checks, reproducible machine-readable artifacts, and green CI.
 
-A provider outage, unavailable historical period or unresolved hourly gap is a failure of evidence, not a pass. The fixed 2025 DEX experiment must use a legitimate provider with the required historical coverage; no API bypass or fabricated data is acceptable. The current Coinbase benchmark has an unresolved gap ending at 2025-10-25T21:00:00Z, so the pre-dashboard research gate intentionally remains red.
+A provider outage, unavailable historical period or unresolved hourly gap is a failure of evidence, not a pass. The fixed 2025 DEX experiment must use a legitimate provider with the required historical coverage; no API bypass or fabricated data is acceptable. The Coinbase alternative exposed an unresolved gap ending at 2025-10-25T21:00:00Z and is not accepted as evidence. The Binance public-data-only endpoint is being tested as the benchmark source; the readiness gate remains red until a complete, validated dataset and passing OOS evidence are produced.
 
 ## Development commands
 
@@ -52,13 +52,13 @@ npm ci
 npm run typecheck
 npm test
 npm run build
-npm run research:solana:coinbase
+npm run research:solana:binance
 ```
 
 ## Data-provider roles
 
 - **DEX research:** GeckoTerminal/Birdeye sources are intended for DEX-specific historical research where the provider legitimately supplies the required period.
-- **SOL benchmark:** Coinbase Exchange SOL-USD is a clearly labeled CEX benchmark, not a substitute for Raydium/DEX performance. Binance remains an optional provider but is restricted from the current GitHub Actions runner location.
+- **SOL benchmark:** Binance SOLUSDT via its official public market-data-only endpoint is a clearly labeled CEX benchmark, not a substitute for Raydium/DEX performance. It is used for historical benchmarking only, not production DEX execution.
 - **Production discovery/on-chain:** Solana RPC and discovery providers are separate from historical benchmark evidence.
 
 ## Roadmap

@@ -19,6 +19,24 @@ function accountingFor(candles: readonly StrategyCandle[], fills: readonly Execu
 function fillKey(fill: ExecutionFill): string {
   return [fill.signalIndex, fill.executionIndex, fill.side, fill.quantity, fill.referencePrice, fill.fillPrice, fill.fee].join("|");
 }
+/** Select only fills that strictly reduce absolute exposure; never allow a same-batch flip. */
+export function selectRiskReducingFills(
+  fills: readonly ExecutionFill[],
+  currentPositionQuantity: number
+): ExecutionFill[] {
+  if (!Number.isFinite(currentPositionQuantity)) throw new Error("currentPositionQuantity must be finite");
+  const selected: ExecutionFill[] = [];
+  let position = currentPositionQuantity;
+  for (const fill of fills) {
+    const nextPosition = position + (fill.side === "BUY" ? fill.quantity : -fill.quantity);
+    if (Math.abs(nextPosition) < Math.abs(position)) {
+      selected.push(fill);
+      position = nextPosition;
+    }
+  }
+  return selected;
+}
+
 function riskFor(accounting: PortfolioAccountingResult, limits: PaperTradingRiskLimits) {
   const maxDrawdownPct = Math.max(...accounting.equityCurve.map((p) => p.drawdownPct), 0);
   const maxPositionNotionalPct = Math.max(...accounting.equityCurve.map((p) => Math.abs(p.positionValue) / Math.max(p.equity, 1e-9) * 100), 0);
@@ -59,13 +77,13 @@ export class PaperTradingState {
     let candidateFills = newFills;
 
     if (this.halted) {
-      candidateFills = newFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
+      candidateFills = selectRiskReducingFills(newFills, beforePosition);
     } else if (candidateFills.length > 0) {
       const trial = accountingFor(this.candles, [...this.fills, ...candidateFills], this.config.initialCapital, this.config.allowShort);
       const point = trial.equityCurve.at(-1);
       const trialExposurePct = point ? Math.abs(point.positionValue) / Math.max(point.equity, 1e-9) * 100 : 0;
       if (trialExposurePct > this.riskLimits.maxPositionNotionalPct) {
-        candidateFills = candidateFills.filter((fill) => beforePosition > 0 ? fill.side === "SELL" : beforePosition < 0 ? fill.side === "BUY" : false);
+        candidateFills = selectRiskReducingFills(candidateFills, beforePosition);
       }
     }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PaperTradingState } from "./paper-trading-state.js";
+import { PaperTradingState, selectRiskReducingFills } from "./paper-trading-state.js";
 
 const makeCandle = (index: number) => ({
   timestamp: index * 60_000,
@@ -23,6 +23,18 @@ describe("PaperTradingState", () => {
     state.append(makeCandle(3));
     expect(state.getFills().length).toBeGreaterThanOrEqual(before);
     expect(new Set(state.getFills().map((fill) => `${fill.signalIndex}:${fill.executionIndex}:${fill.side}`)).size).toBe(state.getFills().length);
+  });
+
+
+  it("allows only exposure-reducing fills and prevents same-batch position flips", () => {
+    const sellClose = { signalIndex: 1, executionIndex: 1, side: "SELL" as const, quantity: 1, referencePrice: 100, fillPrice: 99, fee: 0.1 };
+    const sellFlip = { ...sellClose, signalIndex: 1, executionIndex: 1, quantity: 1 };
+    expect(selectRiskReducingFills([sellClose, sellFlip], 1)).toEqual([sellClose]);
+
+    const buyClose = { ...sellClose, side: "BUY" as const, fillPrice: 101 };
+    const buyFlip = { ...buyClose };
+    expect(selectRiskReducingFills([buyClose, buyFlip], -1)).toEqual([buyClose]);
+    expect(selectRiskReducingFills([sellClose], 0)).toEqual([]);
   });
 
   it("rejects non-increasing timestamps", () => {

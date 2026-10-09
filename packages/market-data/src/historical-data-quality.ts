@@ -16,6 +16,7 @@ export interface HistoricalDataQualityReport {
   invalidCandleCount: number;
   invalidVolumeCount: number;
   gapCount: number;
+  gapTimestamps: readonly number[];
   largestGapMs: number;
   coverageStart?: number;
   coverageEnd?: number;
@@ -42,6 +43,7 @@ export function auditHistoricalData(
   let invalidCandleCount = 0;
   let invalidVolumeCount = 0;
   let gapCount = 0;
+  const gapTimestamps: number[] = [];
   let largestGapMs = 0;
   const seen = new Set<number>();
 
@@ -74,6 +76,7 @@ export function auditHistoricalData(
       const delta = bar.timestamp - previous.timestamp;
       if (delta > expectedIntervalMs) {
         gapCount += 1;
+        gapTimestamps.push(bar.timestamp);
         largestGapMs = Math.max(largestGapMs, delta);
       }
     }
@@ -84,7 +87,7 @@ export function auditHistoricalData(
   if (invalidCandleCount > 0) errors.push(`found ${invalidCandleCount} invalid candles`);
   if (invalidVolumeCount > 0) errors.push(`found ${invalidVolumeCount} invalid volumes`);
   if (options.maxGapCount !== undefined && gapCount > options.maxGapCount) {
-    errors.push(`found ${gapCount} gaps, exceeding maximum ${options.maxGapCount}`);
+    errors.push(`found ${gapCount} gaps, exceeding maximum ${options.maxGapCount}; first gap ends at ${new Date(gapTimestamps[0]!).toISOString()}`);
   }
 
   const firstTimestamp = bars[0]?.timestamp;
@@ -108,6 +111,7 @@ export function auditHistoricalData(
     invalidCandleCount,
     invalidVolumeCount,
     gapCount,
+    gapTimestamps,
     largestGapMs,
     errors
   };

@@ -24,16 +24,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: feature/walk-forward-integration
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Install dependencies
-        run: npm install --include=dev --ignore-scripts
-      - name: Ensure pinned test runner is installed
-        run: npm install --no-save --include=dev vitest@2.1.8
+        run: npm ci --include=dev --ignore-scripts
       - name: Typecheck
         run: npm run typecheck
       - name: Test
@@ -49,14 +45,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: feature/walk-forward-integration
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Install dependencies
-        run: npm install --include=dev --ignore-scripts
+        run: npm ci --include=dev --ignore-scripts
       - name: Build
         run: npm run build
       - name: Run SOL DEX historical experiment
@@ -89,14 +83,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: feature/walk-forward-integration
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 24
       - name: Install dependencies
-        run: npm install --include=dev --ignore-scripts
+        run: npm ci --include=dev --ignore-scripts
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Binance public benchmark
@@ -132,9 +124,9 @@ jobs:
         with:
           node-version: 24
       - name: Install dependencies
-        run: npm install --include=dev --ignore-scripts
+        run: npm ci --include=dev --ignore-scripts
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
       - name: Secret pattern check
         shell: bash
         run: |

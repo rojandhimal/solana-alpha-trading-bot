@@ -32,10 +32,8 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --include=dev --ignore-scripts
+        run: npm ci --include=dev --ignore-scripts
 
-      - name: Ensure pinned test runner is installed
-        run: npm install --no-save --include=dev vitest@2.1.8
 
       - name: Typecheck
         run: npm run typecheck

@@ -35,10 +35,8 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install --include=dev
+        run: npm ci --include=dev --ignore-scripts
 
-      - name: Ensure pinned test runner is installed
-        run: npm install --no-save --include=dev vitest@2.1.8
 
       - name: Typecheck
         run: npm run typecheck
@@ -50,7 +48,7 @@ jobs:
         run: npm run build
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
 
       - name: Secret pattern check
         shell: bash
@@ -81,3 +79,11 @@ jobs:
         run: npm run research:solana:binance
         env:
           SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
+
+      - name: Preserve evidence even when validation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-dashboard-evidence
+          path: artifacts/*.json
+          if-no-files-found: error

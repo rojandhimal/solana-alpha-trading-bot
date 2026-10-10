@@ -48,3 +48,10 @@ On suspected key or credential compromise: halt execution, revoke/rotate the cre
 PAPER default/key-rejection tests, malformed input rejection, deterministic entry veto/halt/closure tests, storage-failure latch/recovery tests, and tracked-file secret scan must pass. Full dependency audit includes development tools at high/critical severity. Research workflows use read-only contents permission and no signing credentials. Reports preserve failures without raw provider response bodies. See the dated audit for actual results rather than inferring PASS from these controls.
 
 The file journal requires a single process owner. On storage failure, keep the session halted, restore storage, inspect the atomic journal, verify deterministic replay and explicitly recover. Never reset a halt to resume new exposure automatically. Reports/datasets may contain untrusted provider data; they do not grant strategy, wallet or execution authority.
+
+
+## Queue, hourly ingestion and recovery controls — 11 October 2026
+
+Queued journal records are copied before storage waits. Realtime bars require completed UTC hours with opening timestamps no more than two hours old; freshness is rechecked after queue delay. Exact durable retries are idempotent even after age expiry.
+
+Valid operator halt requests gate unstarted candle processing immediately and report halted risk while persistence is pending. Await the HALT promise for durability. A write already in progress can finish its earlier accepted event. After known storage failure, verified replay may recover a prefix without an unpersisted halt; explicitly persist a recovery HALT before feeding new observations. The [paper recovery contract](paper-session-recovery.md) records these semantics and the single-owner limit. These controls do not establish elapsed paper acceptance or broker-side cancellation.

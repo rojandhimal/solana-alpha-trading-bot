@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "date": "2026-10-10",
+  "date": "2026-10-11",
   "branch": "feature/walk-forward-integration",
-  "verifiedImplementationCommit": "c1f8863f6195aec997903fe48faae1257afbe2ac",
+  "verifiedImplementationCommit": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
   "localTests": {
-    "files": 53,
-    "passed": 229
+    "files": 56,
+    "passed": 248
   },
   "ciEvidence": {
-    "commit": "c1f8863f6195aec997903fe48faae1257afbe2ac",
-    "ci": 38022322667,
-    "validation": 38022322704,
-    "security": 38022322671,
-    "preDashboardEvidence": 38022322836,
-    "historicalResearch": 38022322692
+    "commit": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
+    "ci": 38059026167,
+    "validation": 38059026175,
+    "security": 38059026168,
+    "preDashboardEvidence": 38059026174,
+    "historicalResearch": 38059026200
   },
   "readiness": "NOT_VALIDATED",
   "dashboardMayBegin": false,
@@ -54,13 +54,13 @@
       "id": 2,
       "name": "Dependency vulnerability audit",
       "status": "PASS",
-      "evidence": "Full dependency high/critical audit passed in Security CI on c1f8863. No successful local registry audit is claimed for this continuation."
+      "evidence": "Full dependency high/critical audit passed in Security CI on b68db7c. No fresh successful local registry audit is claimed."
     },
     {
       "id": 3,
       "name": "Typecheck, tests and build",
       "status": "PASS",
-      "evidence": "Local typecheck, 53 files / 229 tests, build and diff check passed. Exact c1f8863 CI and Validation passed, including reproducible npm ci."
+      "evidence": "Local typecheck, 56 files / 248 tests, build and diff check passed. Exact b68db7c CI and Validation passed, including reproducible npm ci."
     },
     {
       "id": 4,
@@ -72,7 +72,7 @@
       "id": 5,
       "name": "Backtesting accounting correctness",
       "status": "PASS",
-      "evidence": "Shared fill validation, chronological order, finite arithmetic, small partial long/short positions, fees, oversell and cash guards verified. Retained CEX OOS results reconcile and replay unchanged."
+      "evidence": "Shared fill and arithmetic checks; terminal liquidation at small quantities; auxiliary OOS sequential capital/sizing; closed-trade PnL and final-equity reconciliation verified. Retained CEX replay unchanged."
     },
     {
       "id": 6,
@@ -90,7 +90,7 @@
       "id": 8,
       "name": "Optimizer anti-overfitting",
       "status": "PASS",
-      "evidence": "Inner split, minimum fit/validation trades, drawdown objective, bounded grid, deterministic selection and duplicate-neighborhood guard verified. No profitability implication."
+      "evidence": "Canonical report: inner split, minimum fit/validation trades, bounded grid, deterministic selection and distinct stability candidates verified. Auxiliary parameter selection ranks the training slice without nested validation; its capital path is now corrected."
     },
     {
       "id": 9,
@@ -114,19 +114,19 @@
       "id": 12,
       "name": "Stateful paper-trading correctness",
       "status": "PASS",
-      "evidence": "Incremental/full replay, delayed fills, OHLC/timestamp validation, immutable configuration/state and batch enforcement regressions passed."
+      "evidence": "Incremental/full replay, delayed fills, immutable state/config and enforcing batch behavior passed. New realtime bars must be complete UTC hours with open timestamps at most two hours old; queued expiry is rejected."
     },
     {
       "id": 13,
       "name": "Risk enforcement and halt behavior",
       "status": "PASS",
-      "evidence": "Actual entry veto, drawdown timing, persistent kill switch, closure after halt, no reversal/new exposure and storage-failure latch verified."
+      "evidence": "Actual entry veto, closure after halt, no reversal/new exposure and storage latch verified. Valid operator requests immediately report halt; unstarted candles are rejected until durable HALT. An already submitted write may finish."
     },
     {
       "id": 14,
       "name": "Persistence, replay and idempotency",
       "status": "PASS",
-      "evidence": "Atomic file journal, file/directory sync, contiguous sequences, duplicate/conflict handling, configuration identity, restart reconciliation, corrupt snapshots and storage failure tests passed. Single writer only."
+      "evidence": "Atomic single-owner file journal, fsync, sequence/conflict/tamper/replay checks and queued-record copying passed. Exact durable retries remain idempotent after realtime expiry. After known storage failure, explicit recovery must persist a new HALT before new input."
     },
     {
       "id": 15,
@@ -138,7 +138,7 @@
       "id": 16,
       "name": "CI reliability",
       "status": "PASS",
-      "evidence": "CI, Validation and Security passed on c1f8863. Evidence and Historical Research failed for documented provider/strategy acceptance, preserving artifacts. Later commits need separate CI."
+      "evidence": "CI, Validation and Security passed on b68db7c. Downloaded Evidence artifacts confirm provider HTTP 401 and failed strategy acceptance. Later commits require separate CI."
     },
     {
       "id": 17,
@@ -156,17 +156,17 @@
     "No live broker, signing flow, dashboard implementation or deployment added"
   ],
   "replayEvidence": {
-    "checkedAt": "2026-10-10T03:57:48.608Z",
-    "report": "artifacts/continuous-oos/benchmark.json",
-    "reportSha256": "486947fe97d86d8d91014b96b0424c0f90d8b68bdcf1e8663da5dcd11ac14435",
+    "checkedAt": "2026-10-10T14:18:30.745Z",
+    "report": "artifacts/paper-safety-2026-10-11/benchmark.json",
+    "reportSha256": "4f4bb8c1bc82154f827846c317658c44bc9cdfa39208baf1378ed6c529b3b8e4",
     "release": {
-      "commitSha": "c1f8863f6195aec997903fe48faae1257afbe2ac",
+      "commitSha": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
       "branch": "feature/walk-forward-integration",
       "dependencyLockSha256": "b76659e657234b6a817e9ec886d669f6adef3416a76348a5044e14c4a78c9f07"
     },
     "datasetSha256": "646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009",
     "workingTreeDirty": false,
-    "comparison": "Exact summary and benchmark equality with retained 514888c report",
+    "comparison": "Exact summary and comparable benchmark equality with retained c1f8863 report",
     "baselineReturnPct": -3.556689965796668,
     "optimizedReturnPct": -3.814285218656151,
     "readiness": {
@@ -180,5 +180,6 @@
         "CEX benchmark does not validate Solana DEX execution"
       ]
     }
-  }
+  },
+  "dateTimezone": "Australia/Melbourne"
 }

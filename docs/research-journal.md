@@ -3,7 +3,7 @@
 **Project:** Solana Alpha Trading Bot  
 **Repository:** https://github.com/rojandhimal/solana-alpha-trading-bot  
 **Purpose:** Publication-oriented record of research questions, engineering changes, algorithm design, experiments, validation evidence, limitations, and decisions.  
-**Status at last entry:** Pre-dashboard research and security gate is OPEN / NOT PASSED. Implementation progress is not evidence of profitability. Live trading remains disabled.
+**Status at last entry:** Software checks pass on c1f8863; research acceptance is FAIL and required evidence is BLOCKED. The overall pre-dashboard gate is OPEN / NOT PASSED. Implementation progress is not evidence of profitability. Live trading remains disabled.
 
 > **Record-keeping rule:** Distinguish implemented, tested locally, passed in CI, observed from a real data run, and planned. Never report performance metrics unless the exact dataset, code revision, configuration, and output artifact are retained. Failed or inconclusive experiments remain in the journal.
 
@@ -63,7 +63,7 @@ The shared accounting engine tracks cash, position quantity, average entry/cost 
 
 The current research configuration uses hourly SOL candles with nominal 90-day training windows, 30-day testing windows, and 30-day steps. Candidate parameters are searched on training data only; the selected configuration is frozen for the following test window. The fixed-parameter baseline is compared with the optimized approach.
 
-The optimizer searches fast EMA, slow EMA, RSI, momentum, ATR, and volume lookbacks, plus entry threshold. Its scoring function combines return, bounded profit factor, expectancy, drawdown penalty, and a trade-count term. This introduces model-selection risk. Nested train/validation selection, deterministic tie-breaking, parameter stability analysis, and multiple-testing awareness must be reviewed before acceptance.
+The optimizer searches fast EMA, slow EMA, RSI, momentum, ATR, and volume lookbacks, plus entry threshold. Its scoring function combines return, bounded profit factor, expectancy, drawdown penalty, and a trade-count term. This introduces model-selection risk. The canonical report now uses nested train/validation selection, deterministic tie-breaking and training-only parameter stability. Minimum trade counts and a bounded grid are enforced. These implementation checks do not remove multiple-testing or regime-shift risk.
 
 ### 4.5 Stress and statistical robustness
 
@@ -71,7 +71,7 @@ Configured stress scenarios include base execution, higher slippage, higher fees
 
 ### 4.6 Risk controls
 
-The stateful paper-trading component validates candle fields and timestamp ordering, tracks drawdown and exposure, and is designed to stop opening additional exposure after a risk halt while permitting risk-reducing exits. The batch paper session's risk status is post-run telemetry, not an intrabar or broker-enforced kill switch. Stateful gating and delayed fills require regression tests before the control can be described as reliable.
+The stateful paper-trading component validates candle fields and timestamp ordering, tracks drawdown and exposure, and is designed to stop opening additional exposure after a risk halt while permitting risk-reducing exits. The batch paper session now replays through the same enforcing state as incremental ingestion. Entry vetoes, delayed fills, persistent halt and safe closing have verified regressions; this remains a candle simulation, not a broker-enforced kill switch or elapsed paper acceptance record.
 
 ## 5. Data sources, provenance, and limitations
 
@@ -232,3 +232,30 @@ At each meaningful implementation session:
 **Validation status:** The code and regression test are committed. The combined-status lookup did not yet expose a CI status for commit eca7efa43dada32996cd84f53dc53c7940054164. Mark as pending CI verification, not passed.
 
 **Pre-dashboard status:** Still OPEN / NOT PASSED. Other stateful execution, persistence/replay, data provenance, optimizer validation, statistical assumptions, dependency audit, and end-to-end experiment evidence remain outstanding.
+
+
+### Entry 2026-10-10, 03:59 UTC — Verified engineering, retained negative experiment and continued fixes
+
+**Evidence scope:** The earlier pending-CI notes are historical snapshots. Current implementation is `c1f8863f6195aec997903fe48faae1257afbe2ac` on `feature/walk-forward-integration`. This entry supersedes earlier unverified software/benchmark status while preserving the failed observations. Overall readiness remains **NOT VALIDATED**.
+
+**Completed foundation work:** Commits `ed82dfb`, `fdb9e43`, `54cf242`, `0c727cd`, `721453a`, `c59ce6b`, `514888c`, `4c02a90` and `7737815` repaired the incomplete lockfile and vulnerable test runner, hardened provider and discovery contracts, corrected accounting/causal execution/sequential OOS capital, added nested training validation and distinct stability candidates, enforced paper risk, implemented a restartable event journal with a storage-failure latch, and retained reproducible dataset/report identities. Principal files are `package-lock.json`, `.github/workflows/`, `packages/market-data/src/`, `packages/backtesting/src/`, `apps/research/src/research-report.ts`, and the readiness/security documentation. The [audit](pre-dashboard-audit-2026-10-10.md) records the concrete defects and 17 gate states. These are implemented and tested software improvements, not positive strategy evidence.
+
+**New fixes and diagnostic tests:** `fd37a137dec87b8f9dee6658278d6e8fa4bea64e` shares fill validation across execution, accounting, attribution and persistence; rejects invalid/unsafe indices, sides, prices, fees, chronological disorder and unrepresentable notionals; preserves small partial long/short positions; rejects small oversells; bounds cash rounding relative to capital; and rejects non-finite portfolio/trade calculations. FIFO fee allocation now retains a remaining lot fee instead of dividing a fee by a potentially tiny quantity. `c1f8863f6195aec997903fe48faae1257afbe2ac` fixes continuous OOS boundary resets by scheduling selected configurations on one causal stream; pending orders keep their original target and preceding OOS candle history remains available. Gaps and invalid test indices are rejected. Regression sources: `fill-integrity-regression.test.ts` (18 cases) and `continuous-oos-boundary-regression.test.ts` (8 cases). Before fixing, 15 of the initial 16 fill cases and all 7 initial boundary cases failed. The previous boundary test expected artificial trades caused by history resets and was corrected to assert uninterrupted exposure.
+
+**Actual local verification:** Typecheck, **53 test files / 229 tests**, build, tracked-file secret-pattern scan (165 files), and `git diff --check` passed on the new implementation. Pattern scanning does not establish that every possible credential is absent. No fresh successful local registry audit is claimed.
+
+**Exact-commit CI:** On c1f8863, [CI 38022322667](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38022322667), [Validation 38022322704](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38022322704), and [Security 38022322671](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38022322671) passed, including reproducible installation and the full dependency high/critical audit. [Evidence 38022322836](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38022322836) and [Historical Research 38022322692](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38022322692) failed. Downloaded Evidence artifacts confirm provider HTTP 401 and genuine CEX acceptance failures. The previous pushed 7737815 and fill-fix fd37a13 also passed CI/Validation/Security; those outcomes were checked rather than inferred. A later documentation commit needs its own checks.
+
+**Retained real experiment:** Binance SOLUSDT has 8,760 valid hourly 2025 bars; dataset SHA-256 `646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009`. Nine complete OOS windows cover 6,480 bars after 2,160 initial training bars; the last 120 bars are excluded. The canonical report uses costed window-end liquidation and quantity scaled to realized prior-window capital. It differs from the alternative continuous simulator, which carries positions and uses only preceding OOS history for indicator warmup.
+
+| Measured OOS result | Baseline | Optimized | Comparable passive SOL |
+| --- | ---: | ---: | ---: |
+| Return | -3.5567% | -3.8143% | -0.0866% |
+| Maximum drawdown | 3.6414% | 3.9301% | 1.3557% |
+| Closed trades | 574 | 637 | 9 |
+
+Optimized profit factor is approximately 0.60, expectancy is negative, all nine windows lose money and all training-neighborhood stability checks fail. The IID mean-window bootstrap 95% interval is [-0.5578%, -0.2970%]. The 5,000 fixed-PnL permutations (seed 42) estimate trade-order drawdown sensitivity, with a 95th-percentile drawdown of 4.3373%; terminal profit is fixed by construction and is not a predictive confidence interval. Earlier compounded per-trade-return Monte Carlo interpretation has been superseded for this report. Liquidity/volatility stress changes modeled execution costs, not measured DEX capacity or generated market regimes.
+
+**Reproduction and retained artifacts:** Built c1f8863, then ran `SOL_DATASET_FILE=artifacts/ci-721453a/solana-binance-historical-experiment.json.dataset.json SOL_BINANCE_EXPERIMENT_OUTPUT=artifacts/continuous-oos/benchmark.json npm run research:solana:binance`. The clean-tree report has the actual commit, branch and lock hash and returned exit 1 for failed strategy acceptance. Its summary and comparable benchmark exactly match the retained 514888c report. New report SHA-256: `486947fe97d86d8d91014b96b0424c0f90d8b68bdcf1e8663da5dcd11ac14435`; verification is `artifacts/continuous-oos/replay-verification.json`. Current downloaded CI reports and dataset are in `artifacts/ci-c1f8863/pre-dashboard-evidence/`; the workflow artifact is the remotely retained copy. Generated data stays outside source control.
+
+**Open work and decision:** 2025 Solana DEX history remains blocked by legitimate public-provider access; CEX data is not interchangeable. Strategy performance, stability, stress and statistical acceptance remain failed. An elapsed realtime paper acceptance session, frozen duration/regime policy and accepted strategy are absent; historical replay is not elapsed operation. Further work should audit remaining public research APIs and recovery/freshness edge cases, then test any new strategy hypothesis on a fresh holdout because 2025 OOS has been inspected. File journals currently support one writer, not multi-process ownership. Dashboard work remains blocked and live trading disabled. No thresholds were lowered or strategy parameters tuned to make this failed OOS period pass.

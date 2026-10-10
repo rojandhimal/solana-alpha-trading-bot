@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "date": "2026-10-10",
   "branch": "feature/walk-forward-integration",
-  "verifiedImplementationCommit": "514888c2edff2531f49768a82e3f4db4cb75fe6b",
+  "verifiedImplementationCommit": "c1f8863f6195aec997903fe48faae1257afbe2ac",
   "localTests": {
-    "files": 51,
-    "passed": 203
+    "files": 53,
+    "passed": 229
   },
   "ciEvidence": {
-    "commit": "514888c2edff2531f49768a82e3f4db4cb75fe6b",
-    "ci": 38020601352,
-    "validation": 38020601339,
-    "security": 38020601403,
-    "preDashboardEvidence": 38020601359,
-    "historicalResearch": 38020601361
+    "commit": "c1f8863f6195aec997903fe48faae1257afbe2ac",
+    "ci": 38022322667,
+    "validation": 38022322704,
+    "security": 38022322671,
+    "preDashboardEvidence": 38022322836,
+    "historicalResearch": 38022322692
   },
   "readiness": "NOT_VALIDATED",
   "dashboardMayBegin": false,
@@ -54,13 +54,13 @@
       "id": 2,
       "name": "Dependency vulnerability audit",
       "status": "PASS",
-      "evidence": "Full dependency high/critical audit passed in Security and Evidence CI on 514888c; local final registry attempts failed on network access."
+      "evidence": "Full dependency high/critical audit passed in Security CI on c1f8863. No successful local registry audit is claimed for this continuation."
     },
     {
       "id": 3,
       "name": "Typecheck, tests and build",
       "status": "PASS",
-      "evidence": "Local: typecheck, 51 files / 203 tests, build. CI/Validation on 514888c passed with 201 tests; two additional risk regressions passed locally."
+      "evidence": "Local typecheck, 53 files / 229 tests, build and diff check passed. Exact c1f8863 CI and Validation passed, including reproducible npm ci."
     },
     {
       "id": 4,
@@ -72,13 +72,13 @@
       "id": 5,
       "name": "Backtesting accounting correctness",
       "status": "PASS",
-      "evidence": "Fee, short/long, reversal, invalid-fill, equity reconciliation regressions; empirical optimized closed-trade PnL reconciles with OOS equity to floating-point tolerance."
+      "evidence": "Shared fill validation, chronological order, finite arithmetic, small partial long/short positions, fees, oversell and cash guards verified. Retained CEX OOS results reconcile and replay unchanged."
     },
     {
       "id": 6,
       "name": "No look-ahead leakage",
       "status": "PASS",
-      "evidence": "Completed-candle signals execute at next open; pending positions update only on execution; every delayed prefix matches replay. Opening risk checks use opening prices."
+      "evidence": "Completed-candle signals execute at next open; delayed prefixes match replay. Continuous OOS preserves history and pending targets across parameter changes; gaps/invalid indices rejected. Risk checks use opening prices."
     },
     {
       "id": 7,
@@ -138,7 +138,7 @@
       "id": 16,
       "name": "CI reliability",
       "status": "PASS",
-      "evidence": "CI, Validation, Security passed on 514888c. Research/Evidence workflows remain correctly red for provider/strategy failures and preserve artifacts. Later commits require their own CI results."
+      "evidence": "CI, Validation and Security passed on c1f8863. Evidence and Historical Research failed for documented provider/strategy acceptance, preserving artifacts. Later commits need separate CI."
     },
     {
       "id": 17,
@@ -154,5 +154,31 @@
     "Liquidity/volatility shocks model costs, not measured depth or generated market regimes",
     "Historical 2025 OOS has been inspected; new tuning requires fresh holdout evidence",
     "No live broker, signing flow, dashboard implementation or deployment added"
-  ]
+  ],
+  "replayEvidence": {
+    "checkedAt": "2026-10-10T03:57:48.608Z",
+    "report": "artifacts/continuous-oos/benchmark.json",
+    "reportSha256": "486947fe97d86d8d91014b96b0424c0f90d8b68bdcf1e8663da5dcd11ac14435",
+    "release": {
+      "commitSha": "c1f8863f6195aec997903fe48faae1257afbe2ac",
+      "branch": "feature/walk-forward-integration",
+      "dependencyLockSha256": "b76659e657234b6a817e9ec886d669f6adef3416a76348a5044e14c4a78c9f07"
+    },
+    "datasetSha256": "646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009",
+    "workingTreeDirty": false,
+    "comparison": "Exact summary and benchmark equality with retained 514888c report",
+    "baselineReturnPct": -3.556689965796668,
+    "optimizedReturnPct": -3.814285218656151,
+    "readiness": {
+      "status": "NOT_VALIDATED",
+      "software": "NOT_RUN",
+      "strategy": "FAIL",
+      "dashboardMayBegin": false,
+      "blockers": [
+        "Exact candidate CI/security evidence must be evaluated separately",
+        "Elapsed paper-trading acceptance is not supplied",
+        "CEX benchmark does not validate Solana DEX execution"
+      ]
+    }
+  }
 }

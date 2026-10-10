@@ -8,6 +8,26 @@ import {
 } from "./paper-trading-state.js";
 import type { StrategyCandle } from "./alpha-strategy.js";
 import type { ExecutionFill } from "./execution-model.js";
+const REALTIME_INTERVAL_MS = 60 * 60 * 1000;
+const MAX_REALTIME_AGE_MS = 2 * REALTIME_INTERVAL_MS;
+
+function validateRealtimeCandle(candle: StrategyCandle): void {
+  const now = Date.now();
+  const timestamp = candle.timestamp;
+  if (
+    timestamp === undefined ||
+    !Number.isSafeInteger(timestamp) ||
+    timestamp < 0 ||
+    timestamp > now ||
+    now - timestamp > MAX_REALTIME_AGE_MS
+  )
+    throw new Error("stale or future realtime candle");
+  // Provider timestamps denote UTC candle opens, not retrieval or close time.
+  if (timestamp % REALTIME_INTERVAL_MS !== 0)
+    throw new Error("realtime candle must be aligned to a UTC hour");
+  if (timestamp + REALTIME_INTERVAL_MS > now)
+    throw new Error("incomplete realtime candle");
+}
 export type PaperEvent =
   { kind: "CANDLE"; candle: StrategyCandle } | { kind: "HALT"; reason: string };
 export interface PaperJournalRecord {
@@ -78,6 +98,8 @@ export class FilePaperEventJournal implements PaperEventJournal {
     }
   }
   append(record: PaperJournalRecord): Promise<void> {
+    // Own the submitted data before waiting for earlier filesystem operations.
+    record = structuredClone(record);
     const operation = this.queue.then(async () => {
       const records = await this.load();
       if (!checkAppend(records, record)) return;
@@ -117,6 +139,11 @@ export class PersistedPaperTradingSession {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly config: PaperTradingStateConfig;
   private storageFailed = false;
+  private readonly requestedHalts = new Map<string, string>();
+  private readonly queuedEvents = new Map<
+    string,
+    { event: PaperEvent; count: number }
+  >();
   private constructor(
     private readonly journal: PaperEventJournal,
     private readonly sessionId: string,
@@ -162,15 +189,7 @@ export class PersistedPaperTradingSession {
     eventId: string,
     candle: StrategyCandle,
   ): Promise<PaperTradingSnapshot> {
-    const now = Date.now();
-    if (
-      candle.timestamp === undefined ||
-      !Number.isSafeInteger(candle.timestamp) ||
-      candle.timestamp > now ||
-      now - candle.timestamp > 2 * 60 * 60 * 1000
-    )
-      return Promise.reject(new Error("stale or future realtime candle"));
-    return this.append(eventId, candle);
+    return this.commit(eventId, { kind: "CANDLE", candle }, true);
   }
   append(
     eventId: string,
@@ -179,12 +198,34 @@ export class PersistedPaperTradingSession {
     return this.commit(eventId, { kind: "CANDLE", candle: { ...candle } });
   }
   halt(eventId: string, reason: string): Promise<PaperTradingSnapshot> {
-    return this.commit(eventId, { kind: "HALT", reason });
+    if (!eventId.trim()) return Promise.reject(new Error("eventId required"));
+    if (!reason.trim())
+      return Promise.reject(new Error("halt reason is required"));
+    const event: PaperEvent = { kind: "HALT", reason };
+    const existing = this.records.find((record) => record.eventId === eventId);
+    const queued = this.queuedEvents.get(eventId);
+    if (
+      (existing && fingerprint(existing.event) !== fingerprint(event)) ||
+      (queued && fingerprint(queued.event) !== fingerprint(event))
+    )
+      return Promise.reject(new Error("conflicting eventId"));
+    // Gate unstarted candles immediately; the returned promise confirms durability.
+    if (!existing) this.requestedHalts.set(eventId, reason);
+    return this.commit(eventId, event);
   }
   private commit(
     eventId: string,
     event: PaperEvent,
+    realtime = false,
   ): Promise<PaperTradingSnapshot> {
+    if (!eventId.trim()) return Promise.reject(new Error("eventId required"));
+    event = structuredClone(event);
+    const queued = this.queuedEvents.get(eventId);
+    if (queued && fingerprint(queued.event) !== fingerprint(event))
+      return Promise.reject(new Error("conflicting eventId"));
+    const identity = queued ?? { event, count: 0 };
+    identity.count += 1;
+    this.queuedEvents.set(eventId, identity);
     const operation = this.queue.then(async () => {
       if (this.storageFailed)
         throw new Error(
@@ -197,6 +238,13 @@ export class PersistedPaperTradingSession {
           throw new Error("conflicting eventId");
         return structuredClone(existing.snapshot);
       }
+      if (event.kind === "CANDLE" && this.requestedHalts.size > 0)
+        throw new Error(
+          "operator halt pending persistence; retry candle after durable halt",
+        );
+      // A durable retry is historical; only new realtime events need freshness.
+      if (realtime && event.kind === "CANDLE")
+        validateRealtimeCandle(event.candle);
       const trial = new PaperTradingState(this.config);
       for (const record of this.records) this.apply(trial, record.event);
       this.apply(trial, event);
@@ -210,8 +258,10 @@ export class PersistedPaperTradingSession {
         snapshot,
         fills: trial.getFills(),
       };
+      if (realtime && event.kind === "CANDLE")
+        validateRealtimeCandle(event.candle);
       try {
-        await this.journal.append(record);
+        await this.journal.append(structuredClone(record));
       } catch (error) {
         this.storageFailed = true;
         this.state.halt(
@@ -221,12 +271,24 @@ export class PersistedPaperTradingSession {
       }
       this.state = trial;
       this.records.push(structuredClone(record));
+      if (event.kind === "HALT") this.requestedHalts.delete(eventId);
       return structuredClone(snapshot);
     });
-    this.queue = operation.catch(() => {});
-    return operation;
+    const settled = operation.finally(() => {
+      identity.count -= 1;
+      if (identity.count === 0) this.queuedEvents.delete(eventId);
+    });
+    this.queue = settled.catch(() => {});
+    return settled;
   }
   snapshot(): PaperTradingSnapshot {
-    return this.state.snapshot();
+    const snapshot = this.state.snapshot();
+    if (this.requestedHalts.size > 0) {
+      snapshot.risk.halted = true;
+      snapshot.risk.reasons = [
+        ...new Set([...snapshot.risk.reasons, ...this.requestedHalts.values()]),
+      ];
+    }
+    return snapshot;
   }
 }

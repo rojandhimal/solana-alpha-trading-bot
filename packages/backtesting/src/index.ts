@@ -2,7 +2,10 @@ export * from "./stress-testing.js";
 export * from "./execution-stress.js";
 export * from "./execution-model.js";
 export { executeSignals } from "./signal-execution-adapter.js";
-export type { PaperExecutionConfig, PaperExecutionResult } from "./signal-execution-adapter.js";
+export type {
+  PaperExecutionConfig,
+  PaperExecutionResult,
+} from "./signal-execution-adapter.js";
 export * from "./alpha-strategy.js";
 export * from "./alpha-strategy-optimizer.js";
 export * from "./strategy-execution-adapter.js";
@@ -35,3 +38,5 @@ export * from "./walk-forward-parameter-selection.js";
 export * from "./continuous-oos-simulation.js";
 export * from "./monte-carlo-trade-robustness.js";
 export * from "./research-acceptance.js";
+
+export * from "./paper-event-journal.js";

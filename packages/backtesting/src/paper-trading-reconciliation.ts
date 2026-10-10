@@ -11,18 +11,36 @@ export interface PaperTradingReconciliationResult {
 export async function reconcilePaperTradingState(
   repository: PaperTradingRepository,
   sessionId: string,
-  snapshot: PaperTradingSnapshot
+  snapshot: PaperTradingSnapshot,
 ): Promise<PaperTradingReconciliationResult> {
   if (!sessionId.trim()) throw new Error("sessionId must not be empty");
-  const [trades, equity] = await Promise.all([repository.listTrades(sessionId), repository.listEquity(sessionId)]);
+  const [trades, equity] = await Promise.all([
+    repository.listTrades(sessionId),
+    repository.listEquity(sessionId),
+  ]);
   const errors: string[] = [];
-  if (trades.length > snapshot.fillCount) errors.push(`persisted fill count ${trades.length} exceeds state fill count ${snapshot.fillCount}`);
+  if (trades.length !== snapshot.fillCount)
+    errors.push(
+      `persisted fill count ${trades.length} does not match state fill count ${snapshot.fillCount}`,
+    );
   const latest = snapshot.accounting.equityCurve.at(-1);
   const persistedLatest = equity.at(-1);
+  if (Boolean(persistedLatest) !== Boolean(latest))
+    errors.push("latest persisted equity is missing or unexpected");
   if (persistedLatest && latest) {
-    if (persistedLatest.equity !== latest.equity || persistedLatest.cash !== latest.cash || persistedLatest.positionQuantity !== latest.positionQuantity || persistedLatest.drawdownPct !== latest.drawdownPct) {
+    if (
+      persistedLatest.equity !== latest.equity ||
+      persistedLatest.cash !== latest.cash ||
+      persistedLatest.positionQuantity !== latest.positionQuantity ||
+      persistedLatest.drawdownPct !== latest.drawdownPct
+    ) {
       errors.push("latest persisted equity does not match deterministic state");
     }
   }
-  return { reconciled: errors.length === 0, persistedFillCount: trades.length, persistedEquityCount: equity.length, errors };
+  return {
+    reconciled: errors.length === 0,
+    persistedFillCount: trades.length,
+    persistedEquityCount: equity.length,
+    errors,
+  };
 }

@@ -1,19 +1,37 @@
-import type { HistoricalDataQuery, HistoricalDataSource } from "../../market-data/src/historical-source.js";
+import {
+  analyzeParameterStability,
+  type ParameterStabilityReport,
+} from "./parameter-stability.js";
+import type {
+  HistoricalDataQuery,
+  HistoricalDataSource,
+} from "../../market-data/src/historical-source.js";
 import {
   auditHistoricalData,
   assertHistoricalDataQuality,
   type HistoricalDataQualityOptions,
-  type HistoricalDataQualityReport
+  type HistoricalDataQualityReport,
 } from "../../market-data/src/historical-data-quality.js";
-import { optimizeAlphaStrategy, type AlphaStrategyOptimizationOptions } from "./alpha-strategy-optimizer.js";
+import {
+  optimizeAlphaStrategy,
+  type AlphaStrategyOptimizationOptions,
+  type AlphaStrategyOptimizationResult,
+} from "./alpha-strategy-optimizer.js";
 import type { Candle } from "./execution-model.js";
 import type { RobustnessThresholds } from "./robustness.js";
 import type { StressScenario } from "./stress-testing.js";
 import type { StrategyExecutionConfig } from "./strategy-execution-adapter.js";
-import { runWalkForwardPipeline, type WalkForwardPipelineResult } from "./walk-forward-pipeline.js";
+import {
+  runWalkForwardPipeline,
+  type WalkForwardPipelineResult,
+} from "./walk-forward-pipeline.js";
 import type { WalkForwardOptions } from "./walk-forward.js";
 import { toBacktestCandles } from "./market-data.js";
-import { evaluateResearchAcceptance, type ResearchAcceptanceReport, type ResearchAcceptanceThresholds } from "./research-acceptance.js";
+import {
+  evaluateResearchAcceptance,
+  type ResearchAcceptanceReport,
+  type ResearchAcceptanceThresholds,
+} from "./research-acceptance.js";
 import { runMonteCarloTradeRobustness } from "./monte-carlo-trade-robustness.js";
 
 export interface HistoricalExperimentConfig {
@@ -36,23 +54,44 @@ export interface HistoricalExperimentResult {
   baseline: WalkForwardPipelineResult;
   optimized: WalkForwardPipelineResult;
   acceptance?: ResearchAcceptanceReport;
+  optimizationSelections?: readonly AlphaStrategyOptimizationResult[];
+  trainingParameterStability?: readonly ParameterStabilityReport[];
 }
 
 function validateQuery(config: HistoricalExperimentConfig): void {
   if (!config.symbol.trim()) throw new Error("symbol is required");
-  if (config.query.symbol !== config.symbol) throw new Error("query.symbol must match config.symbol");
-  if (!config.query.interval.trim()) throw new Error("query.interval is required");
-  if (config.query.startTime !== undefined && !Number.isFinite(config.query.startTime)) throw new Error("query.startTime must be finite");
-  if (config.query.endTime !== undefined && !Number.isFinite(config.query.endTime)) throw new Error("query.endTime must be finite");
-  if (config.query.startTime !== undefined && config.query.endTime !== undefined && config.query.startTime > config.query.endTime) {
-    throw new Error("query.startTime must be less than or equal to query.endTime");
+  if (config.query.symbol !== config.symbol)
+    throw new Error("query.symbol must match config.symbol");
+  if (!config.query.interval.trim())
+    throw new Error("query.interval is required");
+  if (
+    config.query.startTime !== undefined &&
+    !Number.isFinite(config.query.startTime)
+  )
+    throw new Error("query.startTime must be finite");
+  if (
+    config.query.endTime !== undefined &&
+    !Number.isFinite(config.query.endTime)
+  )
+    throw new Error("query.endTime must be finite");
+  if (
+    config.query.startTime !== undefined &&
+    config.query.endTime !== undefined &&
+    config.query.startTime > config.query.endTime
+  ) {
+    throw new Error(
+      "query.startTime must be less than or equal to query.endTime",
+    );
   }
 }
 
 function runWfo(
   candles: readonly Candle[],
   config: HistoricalExperimentConfig,
-  strategyOptimizer?: (trainCandles: readonly Candle[], base: StrategyExecutionConfig) => StrategyExecutionConfig
+  strategyOptimizer?: (
+    trainCandles: readonly Candle[],
+    base: StrategyExecutionConfig,
+  ) => StrategyExecutionConfig,
 ): WalkForwardPipelineResult {
   return runWalkForwardPipeline({
     candles,
@@ -61,22 +100,27 @@ function runWfo(
     walkForward: config.walkForward,
     stressScenarios: config.stressScenarios,
     robustnessThresholds: config.robustnessThresholds,
-    ...(strategyOptimizer ? { strategyOptimizer } : {})
+    ...(strategyOptimizer ? { strategyOptimizer } : {}),
   });
 }
 
 function evaluateOptimizedAcceptance(
   optimized: WalkForwardPipelineResult,
   thresholds: ResearchAcceptanceThresholds,
-  initialCapital: number
+  initialCapital: number,
 ): ResearchAcceptanceReport {
   const acceptanceEvidence = {
     outOfSample: optimized.outOfSample,
     profitableWindowPct: optimized.consistency.profitableWindowPct,
     stressRobustness: optimized.robustness,
     ...(optimized.outOfSampleTrades.length > 0
-      ? { monteCarlo: runMonteCarloTradeRobustness({ trades: optimized.outOfSampleTrades, initialCapital }) }
-      : {})
+      ? {
+          monteCarlo: runMonteCarloTradeRobustness({
+            trades: optimized.outOfSampleTrades,
+            initialCapital,
+          }),
+        }
+      : {}),
   };
 
   return evaluateResearchAcceptance(acceptanceEvidence, thresholds);
@@ -84,7 +128,7 @@ function evaluateOptimizedAcceptance(
 
 export async function runHistoricalExperiment(
   source: HistoricalDataSource,
-  config: HistoricalExperimentConfig
+  config: HistoricalExperimentConfig,
 ): Promise<HistoricalExperimentResult> {
   validateQuery(config);
   if (!Number.isFinite(config.initialCapital) || config.initialCapital <= 0) {
@@ -92,28 +136,70 @@ export async function runHistoricalExperiment(
   }
 
   const bars = await source.load(config.query);
-  if (bars.length === 0) throw new Error("historical source returned no candles");
+  if (bars.length === 0)
+    throw new Error("historical source returned no candles");
 
   const qualityOptions: HistoricalDataQualityOptions = {
     ...(config.dataQuality ?? {}),
-    requireRangeCoverage: true
+    requireRangeCoverage: true,
   };
   const dataset = auditHistoricalData(bars, config.query, qualityOptions);
   assertHistoricalDataQuality(bars, config.query, qualityOptions);
   const candles = toBacktestCandles(bars);
 
   const baseline = runWfo(candles, config);
-  const optimized = runWfo(candles, config, (trainCandles, base) =>
-    optimizeAlphaStrategy(trainCandles, base, {
+  const optimizationSelections: AlphaStrategyOptimizationResult[] = [];
+  const trainingParameterStability: ParameterStabilityReport[] = [];
+  const optimized = runWfo(candles, config, (trainCandles, base) => {
+    const selected = optimizeAlphaStrategy(trainCandles, base, {
       ...config.optimization,
-      initialCapital: config.initialCapital
-    }).strategy
-  );
-  const acceptance = config.acceptanceThresholds === undefined
-    ? undefined
-    : evaluateOptimizedAcceptance(optimized, config.acceptanceThresholds, config.initialCapital);
+      initialCapital: config.initialCapital,
+    });
+    optimizationSelections.push(selected);
+    if (selected.strategy.strategy) {
+      const strategy = selected.strategy.strategy;
+      const neighbors = [-1, 0, 1]
+        .map((delta) => ({
+          strategy: {
+            ...strategy,
+            fastPeriod: Math.max(1, strategy.fastPeriod + delta),
+          },
+        }))
+        .filter((c) => c.strategy.fastPeriod < c.strategy.slowPeriod);
+      trainingParameterStability.push(
+        analyzeParameterStability({
+          candles: trainCandles,
+          initialCapital: config.initialCapital,
+          candidates: neighbors,
+          quantity: base.quantity,
+          ...(base.execution ? { execution: base.execution } : {}),
+          stressScenarios: [],
+          robustnessThresholds: config.robustnessThresholds,
+          minTrades: config.optimization?.minTrades ?? 3,
+        }),
+      );
+    }
+    return selected.strategy;
+  });
+  const acceptance =
+    config.acceptanceThresholds === undefined
+      ? undefined
+      : evaluateOptimizedAcceptance(
+          optimized,
+          config.acceptanceThresholds,
+          config.initialCapital,
+        );
 
-  return { symbol: config.symbol, query: config.query, dataset, baseline, optimized, ...(acceptance ? { acceptance } : {}) };
+  return {
+    symbol: config.symbol,
+    query: config.query,
+    dataset,
+    baseline,
+    optimized,
+    optimizationSelections,
+    trainingParameterStability,
+    ...(acceptance ? { acceptance } : {}),
+  };
 }
 
 export interface HistoricalExperimentSummary {
@@ -130,7 +216,9 @@ export interface HistoricalExperimentSummary {
   acceptanceStatus?: ResearchAcceptanceReport["status"];
 }
 
-export function summarizeHistoricalExperiment(result: HistoricalExperimentResult): HistoricalExperimentSummary {
+export function summarizeHistoricalExperiment(
+  result: HistoricalExperimentResult,
+): HistoricalExperimentSummary {
   const summary: HistoricalExperimentSummary = {
     symbol: result.symbol,
     barCount: result.dataset.barCount,
@@ -139,11 +227,14 @@ export function summarizeHistoricalExperiment(result: HistoricalExperimentResult
     baselineMaxDrawdownPct: result.baseline.outOfSample.maxDrawdownPct,
     optimizedMaxDrawdownPct: result.optimized.outOfSample.maxDrawdownPct,
     baselineTradeCount: result.baseline.outOfSample.tradeCount,
-    optimizedTradeCount: result.optimized.outOfSample.tradeCount
+    optimizedTradeCount: result.optimized.outOfSample.tradeCount,
   };
 
-  if (result.dataset.firstTimestamp !== undefined) summary.rangeStart = result.dataset.firstTimestamp;
-  if (result.dataset.lastTimestamp !== undefined) summary.rangeEnd = result.dataset.lastTimestamp;
-  if (result.acceptance !== undefined) summary.acceptanceStatus = result.acceptance.status;
+  if (result.dataset.firstTimestamp !== undefined)
+    summary.rangeStart = result.dataset.firstTimestamp;
+  if (result.dataset.lastTimestamp !== undefined)
+    summary.rangeEnd = result.dataset.lastTimestamp;
+  if (result.acceptance !== undefined)
+    summary.acceptanceStatus = result.acceptance.status;
   return summary;
 }

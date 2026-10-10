@@ -26,12 +26,15 @@ interface OpenLot {
   side: "LONG" | "SHORT";
 }
 
-export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
+export function attributeTrades(
+  fills: readonly ExecutionFill[],
+): CompletedTrade[] {
   const lots: OpenLot[] = [];
   const trades: CompletedTrade[] = [];
 
   for (const fill of fills) {
-    if (fill.quantity <= 0) throw new Error("fill quantity must be positive");
+    if (!Number.isFinite(fill.quantity) || fill.quantity <= 0)
+      throw new Error("fill quantity must be positive");
     const opensLong = fill.side === "BUY";
     const closingSide: "LONG" | "SHORT" = opensLong ? "SHORT" : "LONG";
     let remaining = fill.quantity;
@@ -46,32 +49,61 @@ export function attributeTrades(fills: readonly ExecutionFill[]): CompletedTrade
       const netPnl = grossPnl - entryFee - exitFee;
       const invested = lot.entryPrice * quantity + entryFee;
 
-      trades.push({ entryIndex: lot.entryIndex, exitIndex: fill.executionIndex, side: lot.side, quantity, entryReferencePrice: lot.entryReferencePrice, exitReferencePrice: fill.referencePrice, entryPrice: lot.entryPrice, exitPrice: fill.fillPrice, entryFee, exitFee, grossPnl, netPnl, returnPct: invested === 0 ? 0 : (netPnl / invested) * 100, holdingBars: fill.executionIndex - lot.entryIndex });
+      trades.push({
+        entryIndex: lot.entryIndex,
+        exitIndex: fill.executionIndex,
+        side: lot.side,
+        quantity,
+        entryReferencePrice: lot.entryReferencePrice,
+        exitReferencePrice: fill.referencePrice,
+        entryPrice: lot.entryPrice,
+        exitPrice: fill.fillPrice,
+        entryFee,
+        exitFee,
+        grossPnl,
+        netPnl,
+        returnPct: invested === 0 ? 0 : (netPnl / invested) * 100,
+        holdingBars: fill.executionIndex - lot.entryIndex,
+      });
       lot.quantity -= quantity;
       remaining -= quantity;
       if (lot.quantity <= 1e-9) lots.shift();
     }
 
     if (remaining <= 1e-9) continue;
-    if (lots.length > 0) {
-      throw new Error(`fill quantity exceeds open ${lots[0]?.side.toLowerCase()} at execution index ${fill.executionIndex}`);
+    if (lots.length > 0 && lots[0]?.side !== (opensLong ? "LONG" : "SHORT")) {
+      throw new Error(
+        `fill quantity exceeds open ${lots[0]?.side.toLowerCase()} at execution index ${fill.executionIndex}`,
+      );
     }
 
-    lots.push({ entryIndex: fill.executionIndex, quantity: remaining, entryReferencePrice: fill.referencePrice, entryPrice: fill.fillPrice, entryFeePerUnit: fill.fee / fill.quantity, side: opensLong ? "LONG" : "SHORT" });
+    lots.push({
+      entryIndex: fill.executionIndex,
+      quantity: remaining,
+      entryReferencePrice: fill.referencePrice,
+      entryPrice: fill.fillPrice,
+      entryFeePerUnit: fill.fee / fill.quantity,
+      side: opensLong ? "LONG" : "SHORT",
+    });
   }
 
   return trades;
 }
 
-export function attributeLongTrades(fills: readonly ExecutionFill[]): CompletedTrade[] {
+export function attributeLongTrades(
+  fills: readonly ExecutionFill[],
+): CompletedTrade[] {
   let openLongQuantity = 0;
   for (const fill of fills) {
-    if (fill.quantity <= 0) throw new Error("fill quantity must be positive");
+    if (!Number.isFinite(fill.quantity) || fill.quantity <= 0)
+      throw new Error("fill quantity must be positive");
     if (fill.side === "BUY") {
       openLongQuantity += fill.quantity;
     } else {
       if (fill.quantity > openLongQuantity + 1e-9) {
-        throw new Error(`fill quantity exceeds open long at execution index ${fill.executionIndex}`);
+        throw new Error(
+          `fill quantity exceeds open long at execution index ${fill.executionIndex}`,
+        );
       }
       openLongQuantity -= fill.quantity;
     }

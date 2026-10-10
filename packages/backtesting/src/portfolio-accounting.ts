@@ -1,4 +1,5 @@
 import type { Candle, ExecutionFill } from "./execution-model.js";
+import { validateExecutionFills } from "./execution-model.js";
 
 export interface EquityPoint {
   index: number;
@@ -25,6 +26,13 @@ export interface PortfolioAccountingOptions {
   allowShort?: boolean;
 }
 
+function exceedsAvailableCash(cost: number, cash: number): boolean {
+  // Allow arithmetic rounding relative to capital, never an absolute subsidy.
+  const rounding =
+    Number.EPSILON * 4 * Math.max(Math.abs(cost), Math.abs(cash));
+  return cost > cash && cost - cash > rounding;
+}
+
 export function accountFills(
   candles: readonly Candle[],
   fills: readonly ExecutionFill[],
@@ -34,6 +42,7 @@ export function accountFills(
   if (!Number.isFinite(initialCapital) || initialCapital <= 0)
     throw new Error("initialCapital must be positive");
   const fillsByIndex = new Map<number, ExecutionFill[]>();
+  validateExecutionFills(fills);
   for (const fill of fills) {
     if (
       !Number.isInteger(fill.executionIndex) ||
@@ -41,22 +50,6 @@ export function accountFills(
       fill.executionIndex >= candles.length
     )
       throw new Error("executionIndex must be a non-negative integer");
-    if (!Number.isFinite(fill.fillPrice) || fill.fillPrice <= 0)
-      throw new Error("fillPrice must be positive");
-    if (!Number.isFinite(fill.quantity) || fill.quantity <= 0)
-      throw new Error("quantity must be positive");
-    if (fill.side !== "BUY" && fill.side !== "SELL")
-      throw new Error("invalid fill side");
-    if (!Number.isFinite(fill.fee) || fill.fee < 0)
-      throw new Error("fee must be finite and non-negative");
-    if (
-      !Number.isInteger(fill.signalIndex) ||
-      fill.signalIndex < 0 ||
-      fill.signalIndex > fill.executionIndex
-    )
-      throw new Error("invalid signalIndex");
-    if (!Number.isFinite(fill.referencePrice) || fill.referencePrice <= 0)
-      throw new Error("referencePrice must be positive");
     const bucket = fillsByIndex.get(fill.executionIndex) ?? [];
     bucket.push(fill);
     fillsByIndex.set(fill.executionIndex, bucket);
@@ -101,17 +94,17 @@ export function accountFills(
             allocatedCost - fill.fillPrice * coverQuantity - allocatedFee;
           costBasis -= allocatedCost;
           positionQuantity += coverQuantity;
-          if (Math.abs(positionQuantity) <= 1e-9) {
+          if (positionQuantity === 0) {
             positionQuantity = 0;
             averageEntryPrice = 0;
             costBasis = 0;
             completedTrades += 1;
           } else averageEntryPrice = costBasis / Math.abs(positionQuantity);
           const remaining = fill.quantity - coverQuantity;
-          if (remaining > 1e-9) {
+          if (remaining > 0) {
             const remainingNotional = fill.fillPrice * remaining,
               remainingFee = fill.fee * (remaining / fill.quantity);
-            if (remainingNotional + remainingFee > cash + 1e-9)
+            if (exceedsAvailableCash(remainingNotional + remainingFee, cash))
               throw new Error(
                 `insufficient cash for BUY at execution index ${index}`,
               );
@@ -122,7 +115,7 @@ export function accountFills(
           }
         } else {
           const totalCost = notional + fill.fee;
-          if (totalCost > cash + 1e-9)
+          if (exceedsAvailableCash(totalCost, cash))
             throw new Error(
               `insufficient cash for BUY at execution index ${index}`,
             );
@@ -134,28 +127,28 @@ export function accountFills(
             (previousCostBasis + totalCost) / positionQuantity;
         }
       } else if (positionQuantity > 0) {
-        if (fill.quantity > positionQuantity + 1e-9 && !options.allowShort)
+        if (fill.quantity > positionQuantity && !options.allowShort)
           throw new Error(
             `SELL quantity exceeds position at execution index ${index}`,
           );
         const closingQuantity = Math.min(fill.quantity, positionQuantity);
         const allocatedCost = costBasis * (closingQuantity / positionQuantity);
-        const closingFee = (fill.fee * closingQuantity) / fill.quantity;
+        const closingFee = fill.fee * (closingQuantity / fill.quantity);
         cash += fill.fillPrice * closingQuantity - closingFee;
         realizedPnl +=
           fill.fillPrice * closingQuantity - closingFee - allocatedCost;
         costBasis -= allocatedCost;
         positionQuantity -= closingQuantity;
-        if (positionQuantity <= 1e-9) {
+        if (positionQuantity === 0) {
           positionQuantity = 0;
           averageEntryPrice = 0;
           costBasis = 0;
           completedTrades += 1;
         } else averageEntryPrice = costBasis / positionQuantity;
         const remaining = fill.quantity - closingQuantity;
-        if (remaining > 1e-9) {
+        if (remaining > 0) {
           const proceeds =
-            fill.fillPrice * remaining - (fill.fee * remaining) / fill.quantity;
+            fill.fillPrice * remaining - fill.fee * (remaining / fill.quantity);
           cash += proceeds;
           positionQuantity = -remaining;
           costBasis = proceeds;
@@ -171,6 +164,19 @@ export function accountFills(
         costBasis += notional - fill.fee;
         averageEntryPrice = costBasis / Math.abs(positionQuantity);
       }
+      if (
+        ![
+          cash,
+          positionQuantity,
+          averageEntryPrice,
+          costBasis,
+          realizedPnl,
+          feesPaid,
+        ].every(Number.isFinite)
+      )
+        throw new Error(
+          `portfolio arithmetic overflow at execution index ${index}`,
+        );
     }
     const candle = candles[index];
     if (!candle) continue;
@@ -183,6 +189,14 @@ export function accountFills(
     peakEquity = Math.max(peakEquity, equity);
     const drawdownPct =
       peakEquity === 0 ? 0 : ((peakEquity - equity) / peakEquity) * 100;
+    if (
+      ![positionValue, equity, unrealizedPnl, drawdownPct].every(
+        Number.isFinite,
+      )
+    )
+      throw new Error(
+        `portfolio mark-to-market overflow at candle index ${index}`,
+      );
     equityCurve.push({
       index,
       cash,

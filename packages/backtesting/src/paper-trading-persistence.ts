@@ -1,4 +1,5 @@
 import type { ExecutionFill } from "./execution-model.js";
+import { validateExecutionFill } from "./execution-model.js";
 import type { PaperTradingSnapshot } from "./paper-trading-state.js";
 export interface PaperTradeRecord {
   sessionId: string;
@@ -42,22 +43,7 @@ export class InMemoryPaperTradingRepository implements PaperTradingRepository {
     validateSequence(record.sessionId, record.sequence);
     if (!Number.isFinite(record.recordedAtMs) || record.recordedAtMs < 0)
       throw new Error("recordedAtMs must be a non-negative number");
-    if (
-      (record.fill.side !== "BUY" && record.fill.side !== "SELL") ||
-      ![
-        record.fill.quantity,
-        record.fill.referencePrice,
-        record.fill.fillPrice,
-      ].every((value) => Number.isFinite(value) && value > 0) ||
-      !Number.isFinite(record.fill.fee) ||
-      record.fill.fee < 0 ||
-      !Number.isSafeInteger(record.fill.executionIndex) ||
-      record.fill.executionIndex < 0 ||
-      !Number.isSafeInteger(record.fill.signalIndex) ||
-      record.fill.signalIndex < 0 ||
-      record.fill.signalIndex > record.fill.executionIndex
-    )
-      throw new Error("invalid persisted fill");
+    validateExecutionFill(record.fill);
     const key = `${record.sessionId}:${record.sequence}`;
     const existing = this.trades.get(key);
     if (existing) {

@@ -46,7 +46,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Production dependency audit
+      - name: Full dependency audit
         run: npm audit --audit-level=high
 
       - name: Secret pattern check

@@ -95,6 +95,12 @@ export class FilePaperEventJournal implements PaperEventJournal {
           await file.close();
         }
         await rename(temporary, this.path);
+        const directory = await open(dirname(this.path), "r");
+        try {
+          await directory.sync();
+        } finally {
+          await directory.close();
+        }
       } finally {
         await unlink(temporary).catch((error) => {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -110,6 +116,7 @@ export class PersistedPaperTradingSession {
   private records: PaperJournalRecord[] = [];
   private queue: Promise<unknown> = Promise.resolve();
   private readonly config: PaperTradingStateConfig;
+  private storageFailed = false;
   private constructor(
     private readonly journal: PaperEventJournal,
     private readonly sessionId: string,
@@ -179,6 +186,10 @@ export class PersistedPaperTradingSession {
     event: PaperEvent,
   ): Promise<PaperTradingSnapshot> {
     const operation = this.queue.then(async () => {
+      if (this.storageFailed)
+        throw new Error(
+          "paper storage failed; explicit journal recovery is required",
+        );
       if (!eventId.trim()) throw new Error("eventId required");
       const existing = this.records.find((r) => r.eventId === eventId);
       if (existing) {
@@ -199,7 +210,15 @@ export class PersistedPaperTradingSession {
         snapshot,
         fills: trial.getFills(),
       };
-      await this.journal.append(record);
+      try {
+        await this.journal.append(record);
+      } catch (error) {
+        this.storageFailed = true;
+        this.state.halt(
+          "persistence failure: session halted pending explicit recovery",
+        );
+        throw error;
+      }
       this.state = trial;
       this.records.push(structuredClone(record));
       return structuredClone(snapshot);

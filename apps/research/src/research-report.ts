@@ -30,6 +30,9 @@ export async function writeResearchReport(
 ): Promise<{ exitCode: number; report: Record<string, unknown> }> {
   const generatedAt = new Date().toISOString();
   let commitSha = "UNKNOWN";
+  let branch = "UNKNOWN";
+  let dependencyLockSha256 = "UNKNOWN";
+  let dirty = true;
   try {
     commitSha = execFileSync("git", ["rev-parse", "HEAD"], {
       encoding: "utf8",
@@ -48,14 +51,11 @@ export async function writeResearchReport(
   };
   let bars: readonly OhlcvBar[] | undefined;
   let stage = "DATA_FETCH";
-  const dirty =
-    execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
-      encoding: "utf8",
-    }).trim().length > 0;
   let report: Record<string, unknown>;
   let exitCode = 1;
   try {
     if (input.cachedDatasetPath) {
+      stage = "CACHED_DATASET_VALIDATION";
       const cached = JSON.parse(
         await readFile(input.cachedDatasetPath, "utf8"),
       );
@@ -119,6 +119,10 @@ export async function writeResearchReport(
       researchGates.reasons.push(
         "One or more OOS stress windows failed acceptance",
       );
+    if (dirty || commitSha === "UNKNOWN" || dependencyLockSha256 === "UNKNOWN")
+      researchGates.reasons.push(
+        "Exact clean commit or dependency lock identity is missing",
+      );
     researchGates.passed = researchGates.reasons.length === 0;
     const windowReturns = result.optimized.windows.map(
       (window) => window.test.metrics.totalReturnPct,
@@ -131,6 +135,7 @@ export async function writeResearchReport(
       schemaVersion: 1,
       generatedAt,
       commitSha,
+      release: { commitSha, branch, dependencyLockSha256 },
       workingTreeDirty: dirty,
       provenance,
       datasetSha256: createHash("sha256")
@@ -141,6 +146,23 @@ export async function writeResearchReport(
       summary: summarizeHistoricalExperiment(result),
       researchGates,
       result,
+      paperTrading: {
+        status: "BLOCKED",
+        observationCount: 0,
+        realtimeAcceptance: "NOT_RUN",
+        reason:
+          "No elapsed realtime paper journal supplied; historical replay is not elapsed acceptance",
+      },
+      softwareChecks: {
+        dependencyAudit: "NOT_RUN",
+        secretScan: "NOT_RUN",
+        typecheck: "NOT_RUN",
+        tests: "NOT_RUN",
+        build: "NOT_RUN",
+        riskEnforcement: "NOT_RUN",
+        persistenceReplay: "NOT_RUN",
+        note: "Independent exact-commit check evidence must accompany this research artifact",
+      },
       benchmark: {
         kind: "BUY_AND_HOLD_GROSS",
         returnPct: (bars.at(-1)!.close / bars[0]!.open - 1) * 100,
@@ -187,6 +209,11 @@ export async function writeResearchReport(
     const message =
       error instanceof Error ? error.message : "Unknown research failure";
     const httpStatus = message.match(/HTTP (\d{3})/)?.[1];
+    const providerBlocked =
+      stage === "DATA_FETCH" &&
+      ((!!httpStatus && [401, 403, 429, 451].includes(Number(httpStatus))) ||
+        (!!httpStatus && Number(httpStatus) >= 500) ||
+        /network request failed|fetch failed|abort|timed out/.test(message));
     const publicFailure =
       stage === "DATA_FETCH"
         ? httpStatus
@@ -197,6 +224,7 @@ export async function writeResearchReport(
       schemaVersion: 1,
       generatedAt,
       commitSha,
+      release: { commitSha, branch, dependencyLockSha256 },
       workingTreeDirty: dirty,
       provenance,
       configuration: input.config,
@@ -216,7 +244,7 @@ export async function writeResearchReport(
       readiness: {
         status: "NOT_VALIDATED",
         dashboardMayBegin: false,
-        strategy: stage === "DATA_FETCH" ? "BLOCKED" : "FAIL",
+        strategy: providerBlocked ? "BLOCKED" : "FAIL",
       },
     };
   }

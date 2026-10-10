@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: solana-binance-historical-experiment
-          path: artifacts/solana-binance-historical-experiment.json
+          path: artifacts/solana-binance-historical-experiment.json*
           if-no-files-found: ignore
 
   security:
@@ -105,7 +105,7 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm ci --include=dev --ignore-scripts
-      - name: Production dependency audit
+      - name: Full dependency audit
         run: npm audit --audit-level=high
       - name: Secret pattern check
         run: npm run security:secrets

@@ -118,3 +118,20 @@ it("rejects stale realtime candles before persistence", async () => {
   );
   expect(await journal.load()).toHaveLength(0);
 });
+it("latches a storage failure so later input cannot reopen risk", async () => {
+  const session = await PersistedPaperTradingSession.restore(
+    {
+      load: async () => [],
+      append: async () => {
+        throw new Error("disk failure");
+      },
+    },
+    "failed",
+    config,
+  );
+  await expect(session.append("0", candle(0))).rejects.toThrow("disk failure");
+  expect(session.snapshot().risk.halted).toBe(true);
+  await expect(session.append("1", candle(1))).rejects.toThrow(
+    /explicit journal recovery/,
+  );
+});

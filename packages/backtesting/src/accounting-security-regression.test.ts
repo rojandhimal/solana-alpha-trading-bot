@@ -247,3 +247,61 @@ it("reconciles a long-to-short reversal including allocated fees", () => {
   expect(last.unrealizedPnl).toBeCloseTo(-0.5);
   expect(result.netProfit).toBeCloseTo(-12);
 });
+it("vetoes actual entry signals above the exposure ceiling and latches the halt", () => {
+  const state = new PaperTradingState({
+    initialCapital: 10000,
+    execution: { quantity: 50 },
+    riskLimits: { maxPositionNotionalPct: 0.01 },
+  });
+  for (let i = 0; i < 40; i++)
+    state.append({
+      timestamp: i + 1,
+      open: 100 + i,
+      high: 101 + i,
+      low: 99 + i,
+      close: 100 + i,
+      volume: 100,
+    });
+  expect(state.getFills()).toHaveLength(0);
+  expect(state.snapshot().risk.halted).toBe(true);
+  expect(state.snapshot().risk.reasons.join(" ")).toContain(
+    "position notional",
+  );
+});
+it("a halted session permits a real closing fill but blocks its reversal leg and all later entries", () => {
+  const state = new PaperTradingState({
+    initialCapital: 10000,
+    execution: { quantity: 1 },
+    allowShort: true,
+  });
+  for (let i = 0; i < 10; i++)
+    state.append({
+      timestamp: i + 1,
+      open: 100 + i,
+      high: 101 + i,
+      low: 99 + i,
+      close: 100 + i,
+      volume: 100,
+    });
+  expect(state.snapshot().accounting.equityCurve.at(-1)!.positionQuantity).toBe(
+    1,
+  );
+  state.halt("operator kill switch");
+  for (let i = 10; i < 40; i++) {
+    const price = 110 - (i - 9);
+    state.append({
+      timestamp: i + 1,
+      open: price,
+      high: price + 1,
+      low: price - 1,
+      close: price,
+      volume: 100,
+    });
+  }
+  expect(state.snapshot().risk.halted).toBe(true);
+  expect(state.snapshot().accounting.equityCurve.at(-1)!.positionQuantity).toBe(
+    0,
+  );
+  expect(state.getFills()).toHaveLength(2);
+  expect(state.getFills()[1]!.side).toBe("SELL");
+});

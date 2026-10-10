@@ -53,6 +53,7 @@ export function generateStrategyFillsWithState(
   candles: readonly StrategyCandle[],
   config: StrategyExecutionConfig,
   initialPosition: StrategyPosition = "FLAT",
+  strategySchedule?: readonly AlphaStrategyConfig[],
 ): StatefulStrategyFills {
   if (!Number.isFinite(config.quantity) || config.quantity <= 0)
     throw new Error("quantity must be positive");
@@ -60,6 +61,12 @@ export function generateStrategyFillsWithState(
   validateExecutionParameters(execution);
   if (!["LONG", "SHORT", "FLAT"].includes(initialPosition))
     throw new Error("invalid initial position");
+  if (strategySchedule && strategySchedule.length !== candles.length)
+    throw new Error("strategy schedule must cover every candle");
+  for (const strategy of strategySchedule ?? []) {
+    if (!strategy) throw new Error("strategy schedule must cover every candle");
+    generateSignal([], strategy); // Reject invalid selections even while an order is pending.
+  }
   // Signals consume the completed candle; its open is already in the past.
   if (
     !Number.isInteger(execution.executionDelayBars) ||
@@ -70,8 +77,6 @@ export function generateStrategyFillsWithState(
   const executionCandles: Candle[] = candles.map(
     ({ open, high, low, close }) => ({ open, high, low, close }),
   );
-  const strategy = config.strategy ?? DEFAULT_STRATEGY;
-  const historyLength = requiredHistoryLength(strategy);
   const fills: ExecutionFill[] = [];
   let position: StrategyPosition = initialPosition;
   let pending:
@@ -108,6 +113,11 @@ export function generateStrategyFillsWithState(
       pending = undefined;
     }
     if (pending) continue; // One pending transition; no duplicate exposure orders.
+    // Only the configuration effective at this completed candle can signal.
+    // Pending transitions keep their original target across parameter changes.
+    const strategy =
+      strategySchedule?.[index] ?? config.strategy ?? DEFAULT_STRATEGY;
+    const historyLength = requiredHistoryLength(strategy);
     const historyStart = Math.max(0, index + 1 - historyLength);
     const target = generateSignal(
       candles.slice(historyStart, index + 1),

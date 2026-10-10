@@ -41,9 +41,9 @@ The dashboard is **not** the validation authority. It must consume evidence and 
 
 ## Pre-dashboard readiness gate
 
-See `docs/pre-dashboard-readiness.md`. The gate requires code controls **and actual evidence** from an exact release commit: clean data, multiple OOS windows, train-only optimization, parameter stability, all stress scenarios, deterministic bootstrap/Monte Carlo results, accepted paper trading, security/dependency checks, reproducible machine-readable artifacts, and green CI.
+Current evaluated status: **NOT VALIDATED**. See `docs/pre-dashboard-status.md`, `docs/pre-dashboard-audit-2026-10-10.md` and `docs/pre-dashboard-readiness.json` for actual evidence. See `docs/pre-dashboard-readiness.md` for the gate contract. The gate requires code controls **and actual evidence** from an exact release commit: clean data, multiple OOS windows, train-only optimization, parameter stability, all stress scenarios, deterministic bootstrap/Monte Carlo results, accepted paper trading, security/dependency checks, reproducible machine-readable artifacts, and green CI.
 
-A provider outage, unavailable historical period or unresolved hourly gap is a failure of evidence, not a pass. The fixed 2025 DEX experiment must use a legitimate provider with the required historical coverage; no API bypass or fabricated data is acceptable. The Coinbase alternative exposed an unresolved gap ending at 2025-10-25T21:00:00Z and is not accepted as evidence. The Binance public-data-only endpoint is being tested as the benchmark source; the readiness gate remains red until a complete, validated dataset and passing OOS evidence are produced.
+A provider outage, unavailable historical period or unresolved hourly gap is a failure of evidence, not a pass. The fixed 2025 DEX experiment must use a legitimate provider with the required historical coverage; no API bypass or fabricated data is acceptable. The Coinbase alternative exposed an unresolved gap ending at 2025-10-25T21:00:00Z and is not accepted as evidence. The Binance public market-data endpoint supplied a complete 2025 benchmark dataset, but baseline and optimized OOS results lose money and fail strategy acceptance. DEX data access and elapsed paper acceptance remain blocked.
 
 ## Development commands
 
@@ -63,7 +63,7 @@ npm run research:solana:binance
 
 ## Roadmap
 
-### Completed before dashboard
+### Implemented foundations requiring readiness evidence
 
 - historical data abstraction and quality validation
 - deterministic baseline backtesting

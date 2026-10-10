@@ -41,3 +41,10 @@ Live execution remains disabled until historical validation, walk-forward out-of
 ## Incident response
 
 On suspected key or credential compromise: halt execution, revoke/rotate the credential, inspect activity, preserve evidence, and use a newly controlled wallet/key for any subsequent funds operation. Never expose the compromised secret in an issue, log, report, or chat transcript.
+
+
+## Security acceptance evidence for this phase
+
+PAPER default/key-rejection tests, malformed input rejection, deterministic entry veto/halt/closure tests, storage-failure latch/recovery tests, and tracked-file secret scan must pass. Full dependency audit includes development tools at high/critical severity. Research workflows use read-only contents permission and no signing credentials. Reports preserve failures without raw provider response bodies. See the dated audit for actual results rather than inferring PASS from these controls.
+
+The file journal requires a single process owner. On storage failure, keep the session halted, restore storage, inspect the atomic journal, verify deterministic replay and explicitly recover. Never reset a halt to resume new exposure automatically. Reports/datasets may contain untrusted provider data; they do not grant strategy, wallet or execution authority.

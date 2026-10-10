@@ -43,9 +43,11 @@ The dashboard must not be treated as research-validated until one exact release 
 
 If any item is missing, failed, unavailable or only asserted by documentation, readiness is **NOT VALIDATED**. A provider outage or insufficient historical access must never be converted into a pass.
 
-## Current provider limitation
+## Current evaluated evidence
 
-The fixed 2025 DEX experiment requires historical coverage beyond the public GeckoTerminal window available at runtime. The standard Binance API endpoint was restricted from the GitHub Actions runner location, so its diagnostic artifact correctly recorded a provider limitation rather than substituting data. The provider now uses Binance's official public market-data-only host for the benchmark; the result must be checked before it can count as evidence. The Coinbase Advanced Trade alternative contains an unresolved hourly gap ending at 2025-10-25T21:00:00Z, so strict data-quality validation rejects that dataset. This is an evidence blocker, not a code/test failure. Do not relax the gap threshold or synthesize a candle to force a pass. A legitimate provider with complete coverage, or a documented independently verified repair from an authoritative source, is required before the research evidence gate can pass.
+See `pre-dashboard-audit-2026-10-10.md` and `pre-dashboard-readiness.json` for the dated 17-item gate. The public Binance endpoint supplied all 8,760 hourly bars for 2025 with valid quality/provenance. Its baseline and optimized strategies lose money and fail acceptance. The CEX benchmark does not substitute for Solana DEX evidence.
+
+The fixed 2025 DEX pool experiment remains blocked: GeckoTerminal public API returns HTTP 401 outside its allowed historical window. Coinbase's previously recorded gap has not been independently repaired or accepted. No gap threshold was relaxed and no candle was fabricated. Elapsed realtime paper acceptance is also missing. Dashboard development may not begin while any required gate fails or is blocked.
 
 ## Live-trading gate
 

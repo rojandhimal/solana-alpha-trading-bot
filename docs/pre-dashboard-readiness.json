@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "branch": "feature/walk-forward-integration",
+  "verifiedImplementationCommit": "514888c2edff2531f49768a82e3f4db4cb75fe6b",
+  "localTests": {
+    "files": 51,
+    "passed": 203
+  },
+  "ciEvidence": {
+    "commit": "514888c2edff2531f49768a82e3f4db4cb75fe6b",
+    "ci": 38020601352,
+    "validation": 38020601339,
+    "security": 38020601403,
+    "preDashboardEvidence": 38020601359,
+    "historicalResearch": 38020601361
+  },
+  "readiness": "NOT_VALIDATED",
+  "dashboardMayBegin": false,
+  "softwareVerification": "PASS_FOR_VERIFIED_IMPLEMENTATION",
+  "strategyReadiness": "FAIL",
+  "datasetSha256": "646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009",
+  "summary": {
+    "symbol": "SOLUSDT",
+    "barCount": 8760,
+    "baselineReturnPct": -3.556689965796668,
+    "optimizedReturnPct": -3.814285218656151,
+    "baselineMaxDrawdownPct": 3.6414335720929407,
+    "optimizedMaxDrawdownPct": 3.9300565391869426,
+    "baselineTradeCount": 574,
+    "optimizedTradeCount": 637,
+    "rangeStart": 1735689600000,
+    "rangeEnd": 1767222000000
+  },
+  "comparableOosBenchmark": {
+    "totalReturnPct": -0.08661528168877339,
+    "netProfit": -8.66152816887734,
+    "maxDrawdownPct": 1.3556898541602973,
+    "tradeCount": 9,
+    "winRatePct": 44.44444444444444,
+    "profitFactor": 0.9126039223187524,
+    "expectancy": -0.9623920187639526,
+    "averageWin": 22.611268119548235,
+    "averageLoss": 19.821320129413703
+  },
+  "checks": [
+    {
+      "id": 1,
+      "name": "Security configuration and secret handling",
+      "status": "PASS",
+      "evidence": "PAPER defaults/key rejection tests; tracked-file scan; read-only research workflows. No signer or live broker connected."
+    },
+    {
+      "id": 2,
+      "name": "Dependency vulnerability audit",
+      "status": "PASS",
+      "evidence": "Full dependency high/critical audit passed in Security and Evidence CI on 514888c; local final registry attempts failed on network access."
+    },
+    {
+      "id": 3,
+      "name": "Typecheck, tests and build",
+      "status": "PASS",
+      "evidence": "Local: typecheck, 51 files / 203 tests, build. CI/Validation on 514888c passed with 201 tests; two additional risk regressions passed locally."
+    },
+    {
+      "id": 4,
+      "name": "Historical data quality and provenance",
+      "status": "BLOCKED",
+      "evidence": "Binance CEX dataset PASS: 8760 hourly bars for 2025, no quality errors, SHA-256 recorded. Required Solana DEX dataset unavailable: GeckoTerminal HTTP 401."
+    },
+    {
+      "id": 5,
+      "name": "Backtesting accounting correctness",
+      "status": "PASS",
+      "evidence": "Fee, short/long, reversal, invalid-fill, equity reconciliation regressions; empirical optimized closed-trade PnL reconciles with OOS equity to floating-point tolerance."
+    },
+    {
+      "id": 6,
+      "name": "No look-ahead leakage",
+      "status": "PASS",
+      "evidence": "Completed-candle signals execute at next open; pending positions update only on execution; every delayed prefix matches replay. Opening risk checks use opening prices."
+    },
+    {
+      "id": 7,
+      "name": "Walk-forward validation",
+      "status": "FAIL",
+      "evidence": "Train-only selection and nine sequential OOS windows verified; observed optimized CEX OOS -3.8143%, zero profitable windows and negative expectancy fail acceptance."
+    },
+    {
+      "id": 8,
+      "name": "Optimizer anti-overfitting",
+      "status": "PASS",
+      "evidence": "Inner split, minimum fit/validation trades, drawdown objective, bounded grid, deterministic selection and duplicate-neighborhood guard verified. No profitability implication."
+    },
+    {
+      "id": 9,
+      "name": "Parameter stability",
+      "status": "FAIL",
+      "evidence": "All nine training-neighborhood checks failed stability on the real CEX dataset."
+    },
+    {
+      "id": 10,
+      "name": "Stress testing",
+      "status": "FAIL",
+      "evidence": "All six configured scenarios executed through canonical fills/accounting; one or more OOS stress windows fail configured acceptance."
+    },
+    {
+      "id": 11,
+      "name": "Statistical robustness",
+      "status": "FAIL",
+      "evidence": "Seeded bootstrap and fixed-PnL permutation calculations verified; mean-window 95% CI [-0.5578%, -0.2970%] fails positive-lower-bound acceptance."
+    },
+    {
+      "id": 12,
+      "name": "Stateful paper-trading correctness",
+      "status": "PASS",
+      "evidence": "Incremental/full replay, delayed fills, OHLC/timestamp validation, immutable configuration/state and batch enforcement regressions passed."
+    },
+    {
+      "id": 13,
+      "name": "Risk enforcement and halt behavior",
+      "status": "PASS",
+      "evidence": "Actual entry veto, drawdown timing, persistent kill switch, closure after halt, no reversal/new exposure and storage-failure latch verified."
+    },
+    {
+      "id": 14,
+      "name": "Persistence, replay and idempotency",
+      "status": "PASS",
+      "evidence": "Atomic file journal, file/directory sync, contiguous sequences, duplicate/conflict handling, configuration identity, restart reconciliation, corrupt snapshots and storage failure tests passed. Single writer only."
+    },
+    {
+      "id": 15,
+      "name": "Reproducible end-to-end research report",
+      "status": "PASS",
+      "evidence": "Real CEX report and frozen dataset produced; cached replay matches calculations; failed acceptance returns exit 1; DEX failure artifact preserved. Required paper evidence remains explicitly missing."
+    },
+    {
+      "id": 16,
+      "name": "CI reliability",
+      "status": "PASS",
+      "evidence": "CI, Validation, Security passed on 514888c. Research/Evidence workflows remain correctly red for provider/strategy failures and preserve artifacts. Later commits require their own CI results."
+    },
+    {
+      "id": 17,
+      "name": "Required paper-trading acceptance evidence",
+      "status": "BLOCKED",
+      "evidence": "No elapsed realtime session, frozen duration/regime policy, or accepted strategy exists. Historical replay and synthetic regression tests cannot satisfy this gate."
+    }
+  ],
+  "limitations": [
+    "No accepted 2025 Solana DEX history",
+    "CEX results are not DEX execution evidence",
+    "Elapsed realtime paper acceptance not run",
+    "Liquidity/volatility shocks model costs, not measured depth or generated market regimes",
+    "Historical 2025 OOS has been inspected; new tuning requires fresh holdout evidence",
+    "No live broker, signing flow, dashboard implementation or deployment added"
+  ]
+}

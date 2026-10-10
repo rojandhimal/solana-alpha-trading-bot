@@ -1,14 +1,27 @@
+import {
+  requestProvider,
+  validateProviderQuery,
+  storeProviderBar,
+} from "./provider-request.js";
 import { z } from "zod";
-import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
+import type {
+  HistoricalDataQuery,
+  HistoricalDataSource,
+  OhlcvBar,
+} from "./historical-source.js";
 
+const numericValue = z
+  .union([z.number(), z.string().trim().min(1)])
+  .transform(Number)
+  .pipe(z.number().finite());
 const responseSchema = z.object({
   data: z.object({
     id: z.string(),
     type: z.string(),
     attributes: z.object({
-      ohlcv_list: z.array(z.array(z.coerce.number().finite()).length(6))
-    })
-  })
+      ohlcv_list: z.array(z.array(numericValue).length(6)),
+    }),
+  }),
 });
 
 export interface GeckoTerminalOhlcvSourceOptions {
@@ -39,13 +52,25 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
   constructor(options: GeckoTerminalOhlcvSourceOptions) {
     if (!options.poolAddress.trim()) throw new Error("poolAddress is required");
-    if (options.maxRetries !== undefined && (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)) {
+    if (
+      options.maxRetries !== undefined &&
+      (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)
+    ) {
       throw new Error("maxRetries must be a non-negative integer");
     }
-    if (options.retryBaseDelayMs !== undefined && (!Number.isFinite(options.retryBaseDelayMs) || options.retryBaseDelayMs < 0)) {
+    if (
+      options.retryBaseDelayMs !== undefined &&
+      (!Number.isFinite(options.retryBaseDelayMs) ||
+        options.retryBaseDelayMs < 0)
+    ) {
       throw new Error("retryBaseDelayMs must be non-negative");
     }
-    if (options.pageLimit !== undefined && (!Number.isInteger(options.pageLimit) || options.pageLimit <= 0 || options.pageLimit > 1000)) {
+    if (
+      options.pageLimit !== undefined &&
+      (!Number.isInteger(options.pageLimit) ||
+        options.pageLimit <= 0 ||
+        options.pageLimit > 1000)
+    ) {
       throw new Error("pageLimit must be an integer between 1 and 1000");
     }
 
@@ -53,29 +78,43 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
     this.poolAddress = options.poolAddress;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this.retryBaseDelayMs = options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
-    this.sleepImpl = options.sleepImpl ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+    this.retryBaseDelayMs =
+      options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
+    this.sleepImpl =
+      options.sleepImpl ??
+      ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
     this.pageLimit = options.pageLimit ?? DEFAULT_PAGE_LIMIT;
   }
 
   async load(query: HistoricalDataQuery): Promise<readonly OhlcvBar[]> {
+    validateProviderQuery(query);
     if (!query.symbol.trim()) throw new Error("symbol is required");
     if (!query.interval.trim()) throw new Error("interval is required");
-    if (query.startTime !== undefined && query.endTime !== undefined && query.startTime > query.endTime) {
+    if (
+      query.startTime !== undefined &&
+      query.endTime !== undefined &&
+      query.startTime > query.endTime
+    ) {
       throw new Error("startTime must be less than or equal to endTime");
     }
 
     const timeframe = toGeckoTimeframe(query.interval);
     const pool = encodeURIComponent(this.poolAddress);
     const bars = new Map<number, OhlcvBar>();
-    let beforeTimestamp = query.endTime === undefined ? undefined : Math.floor(query.endTime / 1000) + 1;
+    let beforeTimestamp =
+      query.endTime === undefined
+        ? undefined
+        : Math.floor(query.endTime / 1000) + 1;
 
     for (;;) {
-      const url = new URL(`${this.baseUrl}/networks/solana/pools/${pool}/ohlcv/${timeframe}`);
+      const url = new URL(
+        `${this.baseUrl}/networks/solana/pools/${pool}/ohlcv/${timeframe}`,
+      );
       url.searchParams.set("currency", "usd");
       url.searchParams.set("limit", String(this.pageLimit));
       url.searchParams.set("aggregate", String(toAggregate(query.interval)));
-      if (beforeTimestamp !== undefined) url.searchParams.set("before_timestamp", String(beforeTimestamp));
+      if (beforeTimestamp !== undefined)
+        url.searchParams.set("before_timestamp", String(beforeTimestamp));
 
       const response = await this.fetchWithRetry(url);
       const parsed = responseSchema.parse(await response.json());
@@ -85,17 +124,24 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
       let oldestTimestamp = Number.POSITIVE_INFINITY;
       for (const bar of page) {
         oldestTimestamp = Math.min(oldestTimestamp, bar.timestamp);
-        if ((query.startTime === undefined || bar.timestamp >= query.startTime) &&
-            (query.endTime === undefined || bar.timestamp <= query.endTime)) {
-          bars.set(bar.timestamp, bar);
+        if (
+          (query.startTime === undefined || bar.timestamp >= query.startTime) &&
+          (query.endTime === undefined || bar.timestamp <= query.endTime)
+        ) {
+          storeProviderBar(bars, bar);
         }
       }
 
-      if (query.startTime !== undefined && oldestTimestamp <= query.startTime) break;
+      if (query.startTime !== undefined && oldestTimestamp <= query.startTime)
+        break;
       if (page.length < this.pageLimit) break;
 
       const nextBeforeTimestamp = Math.floor(oldestTimestamp / 1000);
-      if (beforeTimestamp !== undefined && nextBeforeTimestamp >= beforeTimestamp) break;
+      if (
+        beforeTimestamp !== undefined &&
+        nextBeforeTimestamp >= beforeTimestamp
+      )
+        break;
       beforeTimestamp = nextBeforeTimestamp;
     }
 
@@ -103,29 +149,22 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   }
 
   private async fetchWithRetry(url: URL): Promise<Response> {
-    for (let attempt = 0; ; attempt += 1) {
-      const response = await this.fetchImpl(url, {
+    return requestProvider(
+      url,
+      {
         headers: {
           Accept: `application/json;version=${DEFAULT_API_VERSION}`,
-          "User-Agent": DEFAULT_USER_AGENT
+          "User-Agent": DEFAULT_USER_AGENT,
         },
-        signal: AbortSignal.timeout(15_000)
-      });
-      if (response.ok) return response;
-
-      if ((response.status !== 429 && response.status < 500) || attempt >= this.maxRetries) {
-        const body = await readErrorBody(response);
-        const detail = body.length > 0 ? `: ${body}` : "";
-        throw new Error(`GeckoTerminal OHLCV returned HTTP ${response.status}${detail}`);
-      }
-
-      const retryAfterHeader = response.headers.get("retry-after");
-      const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
-      const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0
-        ? retryAfter * 1000
-        : this.retryBaseDelayMs * 2 ** attempt;
-      await this.sleepImpl(delayMs);
-    }
+      },
+      {
+        provider: "GeckoTerminal",
+        fetchImpl: this.fetchImpl,
+        maxRetries: this.maxRetries,
+        retryBaseDelayMs: this.retryBaseDelayMs,
+        sleepImpl: this.sleepImpl,
+      },
+    );
   }
 }
 
@@ -148,7 +187,8 @@ function toGeckoTimeframe(interval: string): "minute" | "hour" | "day" {
 
 function toAggregate(interval: string): number {
   const normalized = interval.trim().toUpperCase();
-  if (normalized === "1M" || normalized === "1H" || normalized === "1D") return 1;
+  if (normalized === "1M" || normalized === "1H" || normalized === "1D")
+    return 1;
   if (normalized === "5M") return 5;
   if (normalized === "15M") return 15;
   if (normalized === "4H") return 4;
@@ -157,13 +197,31 @@ function toAggregate(interval: string): number {
 
 function toOhlcvBar(row: readonly number[]): OhlcvBar {
   const [timestampSeconds, open, high, low, close, volume] = row;
-  if (timestampSeconds === undefined || open === undefined || high === undefined || low === undefined || close === undefined || volume === undefined) {
+  if (
+    timestampSeconds === undefined ||
+    open === undefined ||
+    high === undefined ||
+    low === undefined ||
+    close === undefined ||
+    volume === undefined
+  ) {
     throw new Error("GeckoTerminal OHLCV row is incomplete");
   }
-  if (timestampSeconds <= 0 || open <= 0 || high <= 0 || low <= 0 || close <= 0 || volume < 0) {
+  if (
+    timestampSeconds <= 0 ||
+    open <= 0 ||
+    high <= 0 ||
+    low <= 0 ||
+    close <= 0 ||
+    volume < 0
+  ) {
     throw new Error("GeckoTerminal OHLCV contains invalid values");
   }
-  if (high < Math.max(open, close) || low > Math.min(open, close) || high < low) {
+  if (
+    high < Math.max(open, close) ||
+    low > Math.min(open, close) ||
+    high < low
+  ) {
     throw new Error("GeckoTerminal OHLCV contains invalid candle bounds");
   }
   return { timestamp: timestampSeconds * 1000, open, high, low, close, volume };

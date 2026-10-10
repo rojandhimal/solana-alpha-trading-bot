@@ -39,7 +39,7 @@ export class SolanaRpcClient {
 
     const payload = (await response.json()) as RpcResponse<T>;
     if (payload.error) {
-      throw new Error(`Solana RPC ${payload.error.code}: ${payload.error.message}`);
+      throw new Error(`Solana RPC ${payload.error.code}`);
     }
     if (payload.result === undefined) {
       throw new Error(`Solana RPC returned no result for ${method}`);

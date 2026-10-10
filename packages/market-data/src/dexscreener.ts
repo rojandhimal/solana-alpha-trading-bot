@@ -1,3 +1,4 @@
+import { requestProvider } from "./provider-request.js";
 import { config } from "@alpha/config";
 import { logger } from "@alpha/logger";
 import type { TokenPair } from "./types.js";
@@ -18,13 +19,16 @@ interface DexPairResponse {
   url?: unknown;
 }
 
-interface DexResponse { pairs?: DexPairResponse[] | null }
+interface DexResponse {
+  pairs?: DexPairResponse[] | null;
+}
 
 function numberOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0)
+    return value;
+  if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
   }
   return null;
 }
@@ -44,7 +48,17 @@ function parsePair(pair: DexPairResponse): TokenPair | null {
   const quoteName = stringOrNull(pair.quoteToken?.name);
   const quoteSymbol = stringOrNull(pair.quoteToken?.symbol);
 
-  if (!chainId || !dexId || !pairAddress || !baseAddress || !baseName || !baseSymbol || !quoteAddress || !quoteName || !quoteSymbol) {
+  if (
+    !chainId ||
+    !dexId ||
+    !pairAddress ||
+    !baseAddress ||
+    !baseName ||
+    !baseSymbol ||
+    !quoteAddress ||
+    !quoteName ||
+    !quoteSymbol
+  ) {
     return null;
   }
 
@@ -64,21 +78,52 @@ function parsePair(pair: DexPairResponse): TokenPair | null {
     volume1hUsd: numberOrNull(pair.volume?.h1) ?? 0,
     buys24h: numberOrNull(pair.txns?.h24?.buys) ?? 0,
     sells24h: numberOrNull(pair.txns?.h24?.sells) ?? 0,
-    pairCreatedAt: created !== null && Number.isFinite(created) ? new Date(created) : null,
-    url: stringOrNull(pair.url)
+    pairCreatedAt:
+      created !== null && Number.isFinite(created) ? new Date(created) : null,
+    url: stringOrNull(pair.url),
   };
 }
 
 export class DexScreenerClient {
   async getTokenPairs(tokenAddress: string): Promise<TokenPair[]> {
-    const url = `${config.DEXSCREENER_BASE_URL}/token-pairs/v1/solana/${tokenAddress}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!response.ok) throw new Error(`DEX Screener returned HTTP ${response.status}`);
-    const data = (await response.json()) as DexResponse;
-    if (!Array.isArray(data.pairs)) return [];
-
-    const pairs = data.pairs.map(parsePair).filter((pair): pair is TokenPair => pair !== null);
-    logger.debug({ tokenAddress, pairCount: pairs.length }, "Fetched token pairs");
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(tokenAddress))
+      throw new Error("invalid Solana token address");
+    const url = new URL(
+      `${config.DEXSCREENER_BASE_URL}/token-pairs/v1/solana/${encodeURIComponent(tokenAddress)}`,
+    );
+    const response = await requestProvider(
+      url,
+      {},
+      {
+        provider: "DEX Screener",
+        fetchImpl: fetch,
+        maxRetries: 3,
+        retryBaseDelayMs: 250,
+        sleepImpl: (delay) =>
+          new Promise((resolve) => setTimeout(resolve, delay)),
+      },
+    );
+    const data: unknown = await response.json();
+    // This endpoint returns a bare array, unlike /latest/dex/pairs.
+    if (!Array.isArray(data))
+      throw new Error("DEX Screener token-pairs response must be an array");
+    const pairs = data.map((entry) => {
+      if (!entry || typeof entry !== "object")
+        throw new Error("malformed DEX Screener pair");
+      const pair = parsePair(entry as DexPairResponse);
+      if (
+        !pair ||
+        pair.chainId !== "solana" ||
+        (pair.baseToken.address !== tokenAddress &&
+          pair.quoteToken.address !== tokenAddress)
+      )
+        throw new Error("DEX Screener pair identity mismatch");
+      return pair;
+    });
+    logger.debug(
+      { tokenAddress, pairCount: pairs.length },
+      "Fetched token pairs",
+    );
     return pairs;
   }
 }

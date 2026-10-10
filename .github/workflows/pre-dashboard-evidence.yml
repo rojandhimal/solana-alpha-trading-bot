@@ -2,7 +2,7 @@ name: Pre-dashboard Evidence
 
 on:
   push:
-    branches: ['feature/**']
+    branches: ["feature/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -37,7 +37,6 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev --ignore-scripts
 
-
       - name: Typecheck
         run: npm run typecheck
 
@@ -51,13 +50,7 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: Secret pattern check
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[1-9A-HJ-NP-Za-km-z]{32,}' -- ':!.github/workflows/**'; then
-            echo 'Potential secret material found in tracked files.'
-            exit 1
-          fi
+        run: npm run security:secrets
 
       - name: Verify PAPER mode has no signing key
         run: |

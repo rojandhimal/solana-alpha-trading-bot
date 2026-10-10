@@ -1,5 +1,14 @@
+import {
+  requestProvider,
+  validateProviderQuery,
+  storeProviderBar,
+} from "./provider-request.js";
 import { z } from "zod";
-import type { HistoricalDataQuery, HistoricalDataSource, OhlcvBar } from "./historical-source.js";
+import type {
+  HistoricalDataQuery,
+  HistoricalDataSource,
+  OhlcvBar,
+} from "./historical-source.js";
 
 const klineSchema = z.array(z.unknown()).min(8);
 const DEFAULT_BASE_URL = "https://data-api.binance.vision";
@@ -30,13 +39,25 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
 
   constructor(options: BinanceOhlcvSourceOptions) {
     if (!options.symbol.trim()) throw new Error("symbol is required");
-    if (options.maxRetries !== undefined && (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)) {
+    if (
+      options.maxRetries !== undefined &&
+      (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)
+    ) {
       throw new Error("maxRetries must be a non-negative integer");
     }
-    if (options.retryBaseDelayMs !== undefined && (!Number.isFinite(options.retryBaseDelayMs) || options.retryBaseDelayMs < 0)) {
+    if (
+      options.retryBaseDelayMs !== undefined &&
+      (!Number.isFinite(options.retryBaseDelayMs) ||
+        options.retryBaseDelayMs < 0)
+    ) {
       throw new Error("retryBaseDelayMs must be non-negative");
     }
-    if (options.pageLimit !== undefined && (!Number.isInteger(options.pageLimit) || options.pageLimit <= 0 || options.pageLimit > 1000)) {
+    if (
+      options.pageLimit !== undefined &&
+      (!Number.isInteger(options.pageLimit) ||
+        options.pageLimit <= 0 ||
+        options.pageLimit > 1000)
+    ) {
       throw new Error("pageLimit must be an integer between 1 and 1000");
     }
 
@@ -44,21 +65,32 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
-    this.retryBaseDelayMs = options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
-    this.sleepImpl = options.sleepImpl ?? ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
+    this.retryBaseDelayMs =
+      options.retryBaseDelayMs ?? DEFAULT_RETRY_BASE_DELAY_MS;
+    this.sleepImpl =
+      options.sleepImpl ??
+      ((delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)));
     this.pageLimit = options.pageLimit ?? DEFAULT_PAGE_LIMIT;
   }
 
   async load(query: HistoricalDataQuery): Promise<readonly OhlcvBar[]> {
+    validateProviderQuery(query);
     const querySymbol = query.symbol.trim().toUpperCase();
     if (!querySymbol) throw new Error("symbol is required");
-    if (querySymbol !== this.symbol) throw new Error("symbol must match configured Binance symbol");
+    if (querySymbol !== this.symbol)
+      throw new Error("symbol must match configured Binance symbol");
     if (!query.interval.trim()) throw new Error("interval is required");
-    if (query.startTime !== undefined && query.endTime !== undefined && query.startTime > query.endTime) {
+    if (
+      query.startTime !== undefined &&
+      query.endTime !== undefined &&
+      query.startTime > query.endTime
+    ) {
       throw new Error("startTime must be less than or equal to endTime");
     }
     if (query.interval.trim().toUpperCase() !== "1H") {
-      throw new Error(`Binance source currently supports only 1H interval, received ${query.interval}`);
+      throw new Error(
+        `Binance source currently supports only 1H interval, received ${query.interval}`,
+      );
     }
 
     const startTime = query.startTime;
@@ -71,8 +103,10 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
       url.searchParams.set("symbol", this.symbol);
       url.searchParams.set("interval", "1h");
       url.searchParams.set("limit", String(this.pageLimit));
-      if (cursor !== undefined) url.searchParams.set("startTime", String(cursor));
-      if (endTime !== undefined) url.searchParams.set("endTime", String(endTime));
+      if (cursor !== undefined)
+        url.searchParams.set("startTime", String(cursor));
+      if (endTime !== undefined)
+        url.searchParams.set("endTime", String(endTime));
 
       const page = await this.fetchPage(url);
       if (page.length === 0) break;
@@ -80,13 +114,14 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
       for (const bar of page) {
         if (startTime !== undefined && bar.timestamp < startTime) continue;
         if (endTime !== undefined && bar.timestamp > endTime) continue;
-        bars.set(bar.timestamp, bar);
+        storeProviderBar(bars, bar);
       }
 
       if (page.length < this.pageLimit) break;
       const lastTimestamp = page[page.length - 1]?.timestamp;
       if (lastTimestamp === undefined) break;
-      const nextCursor = lastTimestamp + HOUR_MS;
+      const nextCursor =
+        Math.max(...page.map((bar) => bar.timestamp)) + HOUR_MS;
       if (cursor !== undefined && nextCursor <= cursor) break;
       if (endTime !== undefined && nextCursor > endTime) break;
       cursor = nextCursor;
@@ -96,30 +131,26 @@ export class BinanceOhlcvSource implements HistoricalDataSource {
   }
 
   private async fetchPage(url: URL): Promise<OhlcvBar[]> {
-    for (let attempt = 0; ; attempt += 1) {
-      const response = await this.fetchImpl(url, {
-        headers: { Accept: "application/json", "User-Agent": DEFAULT_USER_AGENT },
-        signal: AbortSignal.timeout(15_000)
-      });
-      if (response.ok) {
-        const payload: unknown = await response.json();
-        if (!Array.isArray(payload)) throw new Error("Binance OHLCV response must be an array");
-        return payload.map((row) => toOhlcvBar(klineSchema.parse(row)));
-      }
-
-      if ((response.status !== 429 && response.status < 500) || attempt >= this.maxRetries) {
-        const body = await response.text().catch(() => "");
-        const detail = body.trim() ? `: ${body.trim().slice(0, 500)}` : "";
-        throw new Error(`Binance OHLCV returned HTTP ${response.status}${detail}`);
-      }
-
-      const retryAfterHeader = response.headers.get("retry-after");
-      const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
-      const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0
-        ? retryAfter * 1000
-        : this.retryBaseDelayMs * 2 ** attempt;
-      await this.sleepImpl(delayMs);
-    }
+    const response = await requestProvider(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": DEFAULT_USER_AGENT,
+        },
+      },
+      {
+        provider: "Binance",
+        fetchImpl: this.fetchImpl,
+        maxRetries: this.maxRetries,
+        retryBaseDelayMs: this.retryBaseDelayMs,
+        sleepImpl: this.sleepImpl,
+      },
+    );
+    const payload: unknown = await response.json();
+    if (!Array.isArray(payload))
+      throw new Error("Binance OHLCV response must be an array");
+    return payload.map((row) => toOhlcvBar(klineSchema.parse(row)));
   }
 }
 
@@ -132,17 +163,31 @@ function toOhlcvBar(row: readonly unknown[]): OhlcvBar {
   // Binance row[7] is quote-volume (USDT), which keeps volume semantics
   // comparable with the USD-denominated DEX research source.
   const quoteVolume = toFiniteNumber(row[7]);
-  if (timestamp <= 0 || open <= 0 || high <= 0 || low <= 0 || close <= 0 || quoteVolume < 0) {
+  if (
+    timestamp <= 0 ||
+    open <= 0 ||
+    high <= 0 ||
+    low <= 0 ||
+    close <= 0 ||
+    quoteVolume < 0
+  ) {
     throw new Error("Binance OHLCV contains invalid values");
   }
-  if (high < Math.max(open, close) || low > Math.min(open, close) || high < low) {
+  if (
+    high < Math.max(open, close) ||
+    low > Math.min(open, close) ||
+    high < low
+  ) {
     throw new Error("Binance OHLCV contains invalid candle bounds");
   }
   return { timestamp, open, high, low, close, volume: quoteVolume };
 }
 
 function toFiniteNumber(value: unknown): number {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim()))
+    throw new Error("OHLCV contains a non-numeric value");
   const number = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(number)) throw new Error("Binance OHLCV contains a non-numeric value");
+  if (!Number.isFinite(number))
+    throw new Error("Binance OHLCV contains a non-numeric value");
   return number;
 }

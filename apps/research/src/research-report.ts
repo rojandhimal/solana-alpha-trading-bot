@@ -37,6 +37,19 @@ export async function writeResearchReport(
     commitSha = execFileSync("git", ["rev-parse", "HEAD"], {
       encoding: "utf8",
     }).trim();
+    branch =
+      execFileSync("git", ["branch", "--show-current"], {
+        encoding: "utf8",
+      }).trim() ||
+      process.env.GITHUB_REF_NAME ||
+      "DETACHED";
+    dependencyLockSha256 = createHash("sha256")
+      .update(await readFile("package-lock.json"))
+      .digest("hex");
+    dirty =
+      execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+        encoding: "utf8",
+      }).trim().length > 0;
   } catch {
     /* Missing git is reported, never invented. */
   }
@@ -145,7 +158,45 @@ export async function writeResearchReport(
       configuration: input.config,
       summary: summarizeHistoricalExperiment(result),
       researchGates,
-      result,
+      result: {
+        ...result,
+        baseline: {
+          ...result.baseline,
+          windows: result.baseline.windows.map(({ train, ...window }) => ({
+            ...window,
+            train: {
+              metrics: train.metrics,
+              robustness: train.robustness,
+              stressResults: train.stressResults,
+            },
+          })),
+        },
+        optimized: {
+          ...result.optimized,
+          windows: result.optimized.windows.map(({ train, ...window }) => ({
+            ...window,
+            train: {
+              metrics: train.metrics,
+              robustness: train.robustness,
+              stressResults: train.stressResults,
+            },
+          })),
+        },
+        trainingParameterStability: result.trainingParameterStability?.map(
+          (stability) => ({
+            stable: stability.stable,
+            scoreSpreadPct: stability.scoreSpreadPct,
+            candidates: stability.candidates.map(
+              ({ candidate, rank, riskAdjustedScore, backtest }) => ({
+                candidate,
+                rank,
+                riskAdjustedScore,
+                metrics: backtest.metrics,
+              }),
+            ),
+          }),
+        ),
+      },
       paperTrading: {
         status: "BLOCKED",
         observationCount: 0,

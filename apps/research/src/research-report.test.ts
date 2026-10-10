@@ -26,6 +26,8 @@ describe("research failure reports", () => {
     });
     expect(result.exitCode).toBe(1);
     const report = JSON.parse(await readFile(outputPath, "utf8"));
+    expect(report.release.branch).not.toBe("UNKNOWN");
+    expect(report.release.dependencyLockSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(report.readiness.dashboardMayBegin).toBe(false);
     expect(report.readiness.strategy).toBe("BLOCKED");
     expect(report.failure.message).toBe("Provider returned HTTP 401");

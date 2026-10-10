@@ -11,3 +11,7 @@ coverage/
 .prisma/
 postgres_data/
 redis_data/
+
+# Local evidence and immutable dataset caches (CI uploads these separately).
+artifacts/
+solana-*-experiment.json*

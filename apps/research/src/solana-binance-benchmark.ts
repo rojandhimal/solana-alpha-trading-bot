@@ -1,49 +1,29 @@
 import "dotenv/config";
-import { writeFile } from "node:fs/promises";
 import { BinanceOhlcvSource } from "../../../packages/market-data/src/binance-ohlcv.js";
-import {
-  createSolHistoricalExperimentConfig,
-  runHistoricalExperiment,
-  summarizeHistoricalExperiment,
-  evaluatePreDashboardGates
-} from "../../../packages/backtesting/src/index.js";
-
-const config = createSolHistoricalExperimentConfig();
-const binanceSymbol = "SOLUSDT";
-const source = new BinanceOhlcvSource({ symbol: binanceSymbol });
-const result = await runHistoricalExperiment(source, {
-  ...config,
-  symbol: binanceSymbol,
-  query: { ...config.query, symbol: binanceSymbol }
+import { createSolHistoricalExperimentConfig } from "../../../packages/backtesting/src/index.js";
+import { writeResearchReport } from "./research-report.js";
+const base = createSolHistoricalExperimentConfig();
+const config = {
+  ...base,
+  symbol: "SOLUSDT",
+  query: { ...base.query, symbol: "SOLUSDT" },
+};
+const outputPath =
+  process.env.SOL_BINANCE_EXPERIMENT_OUTPUT?.trim() ||
+  "solana-binance-historical-experiment.json";
+const result = await writeResearchReport({
+  ...(process.env.SOL_DATASET_FILE
+    ? { cachedDatasetPath: process.env.SOL_DATASET_FILE }
+    : {}),
+  source: new BinanceOhlcvSource({ symbol: "SOLUSDT" }),
+  config,
+  outputPath,
+  provider: "Binance public market data",
+  marketKind: "CEX_BENCHMARK",
+  identity: "SOLUSDT",
+  volumeSemantics: "quote volume USDT",
 });
-const summary = summarizeHistoricalExperiment(result);
-const preDashboardGates = evaluatePreDashboardGates({ baseline: result.baseline, optimized: result.optimized });
-
-const outputPath = process.env.SOL_BINANCE_EXPERIMENT_OUTPUT?.trim() || "solana-binance-historical-experiment.json";
-await writeFile(outputPath, JSON.stringify({
-  generatedAt: new Date().toISOString(),
-  dataSource: "Binance",
-  market: binanceSymbol,
-  quoteCurrency: "USDT",
-  volumeSemantics: "quote-volume (USDT)",
-  summary,
-  preDashboardGates,
-  dataset: result.dataset,
-  baseline: {
-    outOfSample: result.baseline.outOfSample,
-    consistency: result.baseline.consistency,
-    robustness: result.baseline.robustness
-  },
-  optimized: {
-    outOfSample: result.optimized.outOfSample,
-    consistency: result.optimized.consistency,
-    robustness: result.optimized.robustness
-  }
-}, null, 2) + "\n", "utf8");
-
-console.log(JSON.stringify(summary, null, 2));
-console.log(`Binance benchmark report written to ${outputPath}`);
-if (!preDashboardGates.passed) {
-  console.error(`Pre-dashboard research gates failed: ${preDashboardGates.reasons.join(", ")}`);
-  process.exitCode = 1;
-}
+console.log(
+  `Research report written to ${outputPath}; validation exit code ${result.exitCode}`,
+);
+process.exitCode = result.exitCode;

@@ -3,7 +3,7 @@ name: SOL Historical Research
 on:
   workflow_dispatch:
   push:
-    branches: ['feature/walk-forward-integration']
+    branches: ["feature/walk-forward-integration"]
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ env:
   SOLANA_RPC_URL: https://api.mainnet-beta.solana.com
   DEXSCREENER_BASE_URL: https://api.dexscreener.com
   TRADING_MODE: PAPER
-  ENABLE_LIVE_TRADING: 'false'
+  ENABLE_LIVE_TRADING: "false"
 
 jobs:
   validate:
@@ -54,18 +54,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run SOL DEX historical experiment
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p artifacts
-          if npm run research:solana 2>&1 | tee /tmp/gecko-research.log; then
-            exit 0
-          fi
-          if grep -q "past 180 days" /tmp/gecko-research.log; then
-            printf '%s\n' '{"status":"PROVIDER_LIMITATION","provider":"GeckoTerminal public API","message":"The public API does not expose the requested 2025 history because it is beyond the provider 180-day window. No synthetic or substituted DEX data is used."}' > artifacts/solana-historical-experiment.json
-            exit 0
-          fi
-          exit 1
+        run: npm run research:solana
         env:
           SOL_EXPERIMENT_OUTPUT: artifacts/solana-historical-experiment.json
       - name: Upload DEX diagnostic
@@ -92,16 +81,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run SOL 2025 Binance public benchmark
-        shell: bash
-        run: |
-          set +e
-          mkdir -p artifacts
-          npm run research:solana:binance 2>&1 | tee /tmp/binance-research.log
-          status=${PIPESTATUS[0]}
-          if [ "$status" -ne 0 ]; then
-            node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const log = readFileSync("/tmp/binance-research.log", "utf8"); writeFileSync("artifacts/solana-binance-historical-experiment.json", JSON.stringify({ status: "NOT_VALIDATED", provider: "Binance public market-data endpoint", error: log.slice(-4000) }, null, 2) + "\\n");'
-            exit "$status"
-          fi
+        run: npm run research:solana:binance
         env:
           SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
       - name: Upload Binance benchmark
@@ -128,10 +108,4 @@ jobs:
       - name: Production dependency audit
         run: npm audit --audit-level=high
       - name: Secret pattern check
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git grep -nE 'BEGIN (RSA|EC|OPENSSH|PRIVATE) KEY|AKIA[0-9A-Z]{16}|-----BEGIN.*PRIVATE KEY-----|SOLANA_PRIVATE_KEY=[1-9A-HJ-NP-Za-km-z]{32,}' -- ':!.github/workflows/**'; then
-            echo 'Potential secret material found in tracked files.'
-            exit 1
-          fi
+        run: npm run security:secrets

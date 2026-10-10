@@ -3,6 +3,7 @@ import {
   InMemoryPaperEventJournal,
   PersistedPaperTradingSession,
 } from "./paper-event-journal.js";
+import { generateStrategyFills } from "./strategy-execution-adapter.js";
 
 const config = {
   initialCapital: 1000,
@@ -48,6 +49,12 @@ describe("operator halt while persistence is queued", () => {
     await entered;
     // This third bar would execute the preceding long-entry signal.
     const queued = session.append("queued", candle(3, 102));
+    expect(
+      generateStrategyFills(
+        [candle(1, 100), candle(2, 101), candle(3, 102)],
+        config.execution,
+      ).some((fill) => fill.side === "BUY" && fill.executionIndex === 2),
+    ).toBe(true);
     const rejected = expect(queued).rejects.toThrow(/halt pending persistence/);
     const halt = session.halt("kill", "operator kill switch");
     const immediate = session.snapshot();

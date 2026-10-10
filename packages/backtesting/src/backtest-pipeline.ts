@@ -97,7 +97,7 @@ export function runBacktestPipeline(
         sum + (fill.side === "BUY" ? fill.quantity : -fill.quantity),
       0,
     );
-    if (Math.abs(quantity) <= 1e-9) return fills;
+    if (quantity === 0) return fills;
     const finalIndex = input.candles.length - 1;
     const finalCandle = input.candles[finalIndex]!;
     const close = executeRequest(

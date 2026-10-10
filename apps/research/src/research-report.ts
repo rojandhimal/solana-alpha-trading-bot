@@ -8,6 +8,9 @@ import type {
 } from "../../../packages/market-data/src/historical-source.js";
 import { auditHistoricalData } from "../../../packages/market-data/src/historical-data-quality.js";
 import {
+  executeRequest,
+  runBacktestPipeline,
+  aggregateWalkForwardOutOfSampleMetrics,
   evaluatePreDashboardGates,
   runHistoricalExperiment,
   summarizeHistoricalExperiment,
@@ -76,6 +79,9 @@ export async function writeResearchReport(
         cached.provenance?.provider !== input.provider ||
         cached.provenance?.marketKind !== input.marketKind ||
         cached.provenance?.identity !== input.identity ||
+        cached.provenance?.volumeSemantics !== input.volumeSemantics ||
+        cached.provenance?.timestampUnit !== "milliseconds UTC" ||
+        !Number.isFinite(Date.parse(cached.provenance?.retrievedAt)) ||
         JSON.stringify(cached.provenance?.requestedRange) !==
           JSON.stringify(input.config.query) ||
         !Array.isArray(cached.bars) ||
@@ -144,6 +150,46 @@ export async function writeResearchReport(
       (sum, value) => sum + Math.max(0, value),
       0,
     );
+    let benchmarkCapital = input.config.initialCapital;
+    const benchmarkWindows = result.optimized.windows.map((window) => {
+      const windowBars = bars!.slice(window.testStart, window.testEnd);
+      const quantity =
+        (input.config.baselineStrategy.quantity * benchmarkCapital) /
+        input.config.initialCapital;
+      const execution = {
+        slippagePct: 0.1,
+        feePct: 0.1,
+        liquidityMultiplier: 1,
+        volatilityMultiplier: 1,
+        ...input.config.baselineStrategy.execution,
+        executionDelayBars: 0,
+      };
+      const entry = executeRequest(
+        windowBars,
+        { signalIndex: 0, side: "BUY", quantity },
+        execution,
+      );
+      const last = windowBars.length - 1;
+      const exit = executeRequest(
+        [
+          ...windowBars.slice(0, -1),
+          { ...windowBars[last]!, open: windowBars[last]!.close },
+        ],
+        { signalIndex: last, side: "SELL", quantity },
+        execution,
+      );
+      const test = runBacktestPipeline({
+        candles: windowBars,
+        fills: entry && exit ? [entry, exit] : [],
+        initialCapital: benchmarkCapital,
+        stressScenarios: [],
+        robustnessThresholds: input.config.robustnessThresholds,
+      });
+      benchmarkCapital = test.baseline.finalEquity;
+      return { test };
+    });
+    const firstOosWindow = result.optimized.windows[0];
+    const lastOosWindow = result.optimized.windows.at(-1);
     report = {
       schemaVersion: 1,
       generatedAt,
@@ -214,8 +260,29 @@ export async function writeResearchReport(
         persistenceReplay: "NOT_RUN",
         note: "Independent exact-commit check evidence must accompany this research artifact",
       },
+      evaluationCoverage: {
+        initialTrainingBars: result.optimized.windows[0]?.testStart,
+        oosBars: result.optimized.windows.reduce(
+          (sum, window) => sum + window.testEnd - window.testStart,
+          0,
+        ),
+        firstOosTimestamp: firstOosWindow
+          ? bars[firstOosWindow.testStart]?.timestamp
+          : undefined,
+        lastOosTimestamp: lastOosWindow
+          ? bars[lastOosWindow.testEnd - 1]?.timestamp
+          : undefined,
+        unusedTrailingBars: lastOosWindow
+          ? bars.length - lastOosWindow.testEnd
+          : bars.length,
+        policy:
+          "Only complete test windows are evaluated; initial training and trailing incomplete windows are excluded from OOS performance",
+      },
       benchmark: {
-        kind: "BUY_AND_HOLD_GROSS",
+        comparableOos: aggregateWalkForwardOutOfSampleMetrics(benchmarkWindows),
+        comparableOosAssumptions:
+          "Passive long position over the same OOS windows, same starting SOL quantity scaled by capital, same modeled costs and window-boundary liquidation",
+        kind: "BUY_AND_HOLD_GROSS_FULL_DATASET_REFERENCE",
         returnPct: (bars.at(-1)!.close / bars[0]!.open - 1) * 100,
         assumptions:
           "Full dataset passive return; excludes fees, differs from OOS-only period",

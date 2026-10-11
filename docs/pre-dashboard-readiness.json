@@ -2,18 +2,25 @@
   "schemaVersion": 1,
   "date": "2026-10-11",
   "branch": "feature/walk-forward-integration",
-  "verifiedImplementationCommit": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
+  "verifiedImplementationCommit": "31434ee2dedff3cc24762debd11db64c60135e9f",
   "localTests": {
-    "files": 56,
-    "passed": 248
+    "files": 59,
+    "passed": 276
   },
   "ciEvidence": {
-    "commit": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
-    "ci": 38059026167,
-    "validation": 38059026175,
-    "security": 38059026168,
-    "preDashboardEvidence": 38059026174,
-    "historicalResearch": 38059026200
+    "commit": "31434ee2dedff3cc24762debd11db64c60135e9f",
+    "ci": 38104561333,
+    "validation": 38104561337,
+    "security": 38104561329,
+    "preDashboardEvidence": 38104561346,
+    "historicalResearch": 38104561319,
+    "conclusions": {
+      "ci": "success",
+      "validation": "success",
+      "security": "success",
+      "preDashboardEvidence": "failure",
+      "historicalResearch": "failure"
+    }
   },
   "readiness": "NOT_VALIDATED",
   "dashboardMayBegin": false,
@@ -23,12 +30,12 @@
   "summary": {
     "symbol": "SOLUSDT",
     "barCount": 8760,
-    "baselineReturnPct": -3.556689965796668,
-    "optimizedReturnPct": -3.814285218656151,
-    "baselineMaxDrawdownPct": 3.6414335720929407,
-    "optimizedMaxDrawdownPct": 3.9300565391869426,
-    "baselineTradeCount": 574,
-    "optimizedTradeCount": 637,
+    "baselineReturnPct": -3.670604570277537,
+    "optimizedReturnPct": -4.372209122844888,
+    "baselineMaxDrawdownPct": 3.70792051533458,
+    "optimizedMaxDrawdownPct": 4.46169402191868,
+    "baselineTradeCount": 585,
+    "optimizedTradeCount": 663,
     "rangeStart": 1735689600000,
     "rangeEnd": 1767222000000
   },
@@ -54,13 +61,13 @@
       "id": 2,
       "name": "Dependency vulnerability audit",
       "status": "PASS",
-      "evidence": "Full dependency high/critical audit passed in Security CI on b68db7c. No fresh successful local registry audit is claimed."
+      "evidence": "Full dependency high/critical audit passed in Security CI on 31434ee. No fresh successful local registry audit is claimed."
     },
     {
       "id": 3,
       "name": "Typecheck, tests and build",
       "status": "PASS",
-      "evidence": "Local typecheck, 56 files / 248 tests, build and diff check passed. Exact b68db7c CI and Validation passed, including reproducible npm ci."
+      "evidence": "Local typecheck, 59 files / 276 tests, build and diff check passed. Exact 31434ee CI and Validation passed, including reproducible npm ci; secret-pattern scan covered 172 tracked files."
     },
     {
       "id": 4,
@@ -72,7 +79,7 @@
       "id": 5,
       "name": "Backtesting accounting correctness",
       "status": "PASS",
-      "evidence": "Shared fill and arithmetic checks; terminal liquidation at small quantities; auxiliary OOS sequential capital/sizing; closed-trade PnL and final-equity reconciliation verified. Retained CEX replay unchanged."
+      "evidence": "Shared fill/arithmetic checks, small terminal liquidation and sequential OOS capital reconcile equity/trade PnL. Historical conversion now preserves OHLCV/timestamps; direct and historical runners agree on volume-dependent fills."
     },
     {
       "id": 6,
@@ -84,7 +91,7 @@
       "id": 7,
       "name": "Walk-forward validation",
       "status": "FAIL",
-      "evidence": "Train-only selection and nine sequential OOS windows verified; observed optimized CEX OOS -3.8143%, zero profitable windows and negative expectancy fail acceptance."
+      "evidence": "Train-only selection and nine sequential OOS windows verified; corrected optimized CEX OOS -4.3722%, zero profitable windows and negative expectancy fail acceptance."
     },
     {
       "id": 8,
@@ -102,13 +109,13 @@
       "id": 10,
       "name": "Stress testing",
       "status": "FAIL",
-      "evidence": "All six configured scenarios executed through canonical fills/accounting; one or more OOS stress windows fail configured acceptance."
+      "evidence": "All six configured scenarios executed through canonical fills/accounting; all nine OOS stress windows fail configured acceptance. Public historical acceptance uses actual per-window execution stress and measured training stability."
     },
     {
       "id": 11,
       "name": "Statistical robustness",
       "status": "FAIL",
-      "evidence": "Seeded bootstrap and fixed-PnL permutation calculations verified; mean-window 95% CI [-0.5578%, -0.2970%] fails positive-lower-bound acceptance."
+      "evidence": "Seeded bootstrap and fixed-PnL permutations verified; mean-window 95% CI [-0.6343%, -0.3456%] fails positive-lower-bound acceptance. Malformed counts, rates, ranges and explicit failed verdicts fail closed."
     },
     {
       "id": 12,
@@ -126,19 +133,19 @@
       "id": 14,
       "name": "Persistence, replay and idempotency",
       "status": "PASS",
-      "evidence": "Atomic single-owner file journal, fsync, sequence/conflict/tamper/replay checks and queued-record copying passed. Exact durable retries remain idempotent after realtime expiry. After known storage failure, explicit recovery must persist a new HALT before new input."
+      "evidence": "Atomic single-owner journal, fsync, full record shape, sequence/conflict/replay and copy checks passed. V2 identity ignores object key order; legacy configuration hashes retain original ordering. restoreHalted returns only after durable HALT and handles uncertain writes; failure rejects recovery."
     },
     {
       "id": 15,
       "name": "Reproducible end-to-end research report",
       "status": "PASS",
-      "evidence": "Real CEX report and frozen dataset produced; cached replay matches calculations; failed acceptance returns exit 1; DEX failure artifact preserved. Required paper evidence remains explicitly missing."
+      "evidence": "Corrected real CEX report and frozen dataset retained. Repeated clean-tree research sections and exact CI summary/benchmark/gates match. Unchanged configuration/dataset/passive benchmark verified; failed acceptance returns exit 1; DEX HTTP 401 artifact retained."
     },
     {
       "id": 16,
       "name": "CI reliability",
       "status": "PASS",
-      "evidence": "CI, Validation and Security passed on b68db7c. Downloaded Evidence artifacts confirm provider HTTP 401 and failed strategy acceptance. Later commits require separate CI."
+      "evidence": "CI, Validation and Security passed on 31434ee. Downloaded Evidence artifacts confirm provider HTTP 401 and corrected failed strategy acceptance. Later commits require separate CI."
     },
     {
       "id": 17,
@@ -156,19 +163,33 @@
     "No live broker, signing flow, dashboard implementation or deployment added"
   ],
   "replayEvidence": {
-    "checkedAt": "2026-10-10T14:18:30.745Z",
-    "report": "artifacts/paper-safety-2026-10-11/benchmark.json",
-    "reportSha256": "4f4bb8c1bc82154f827846c317658c44bc9cdfa39208baf1378ed6c529b3b8e4",
+    "checkedAt": "2026-10-11T02:16:24.912680+00:00",
+    "report": "artifacts/volume-correction-2026-10-11/benchmark.json",
+    "reportSha256": "74b5fd86d11a50ea90b6b8dfb0d05a175a5c6f1e7a15303cb3858a5d37d697a2",
     "release": {
-      "commitSha": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
+      "commitSha": "31434ee2dedff3cc24762debd11db64c60135e9f",
       "branch": "feature/walk-forward-integration",
       "dependencyLockSha256": "b76659e657234b6a817e9ec886d669f6adef3416a76348a5044e14c4a78c9f07"
     },
     "datasetSha256": "646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009",
     "workingTreeDirty": false,
-    "comparison": "Exact summary and comparable benchmark equality with retained c1f8863 report",
-    "baselineReturnPct": -3.556689965796668,
-    "optimizedReturnPct": -3.814285218656151,
+    "comparison": "Exact repeated frozen-data research sections; unchanged configuration/dataset/passive benchmark; strategy results corrected after preserving volume",
+    "repeatReport": "artifacts/volume-correction-2026-10-11/repeat.json",
+    "repeatSectionEquality": {
+      "summary": true,
+      "researchGates": true,
+      "result": true,
+      "evaluationCoverage": true,
+      "benchmark": true,
+      "concentration": true,
+      "readiness": true
+    },
+    "ciReport": "artifacts/ci-31434ee/pre-dashboard-evidence/solana-binance-historical-experiment.json",
+    "ciReportSummaryBenchmarkGatesMatch": true,
+    "configurationUnchanged": true,
+    "comparableOosBenchmarkUnchanged": true,
+    "baselineReturnPct": -3.670604570277537,
+    "optimizedReturnPct": -4.372209122844888,
     "readiness": {
       "status": "NOT_VALIDATED",
       "software": "NOT_RUN",
@@ -181,5 +202,42 @@
       ]
     }
   },
-  "dateTimezone": "Australia/Melbourne"
+  "dateTimezone": "Australia/Melbourne",
+  "supersededPerformanceEvidence": {
+    "implementationCommit": "b68db7cd7871f1c09ba09a2e4352407baa5c7d11",
+    "summary": {
+      "symbol": "SOLUSDT",
+      "barCount": 8760,
+      "baselineReturnPct": -3.556689965796668,
+      "optimizedReturnPct": -3.814285218656151,
+      "baselineMaxDrawdownPct": 3.6414335720929407,
+      "optimizedMaxDrawdownPct": 3.9300565391869426,
+      "baselineTradeCount": 574,
+      "optimizedTradeCount": 637,
+      "rangeStart": 1735689600000,
+      "rangeEnd": 1767222000000
+    },
+    "report": "artifacts/paper-safety-2026-10-11/benchmark.json",
+    "reportSha256": "4f4bb8c1bc82154f827846c317658c44bc9cdfa39208baf1378ed6c529b3b8e4",
+    "reason": "Historical conversion discarded volume. Preserved for traceability; superseded by the complete OHLCV rerun."
+  },
+  "statisticalEvidence": {
+    "oosWindowReturnCi": {
+      "estimate": -0.49527515997777016,
+      "lowerPct": -0.6343387292327659,
+      "upperPct": -0.3456124810066303,
+      "confidencePct": 95,
+      "samples": 2000
+    },
+    "monteCarlo": {
+      "simulations": 5000,
+      "seed": 42,
+      "medianReturnPct": -4.372209122844839,
+      "lowerReturnPct": -4.372209122844839,
+      "upperReturnPct": -4.372209122844839,
+      "probabilityOfLossPct": 100,
+      "medianMaxDrawdownPct": 4.473944854775098,
+      "upperMaxDrawdownPct": 4.807556603513537
+    }
+  }
 }

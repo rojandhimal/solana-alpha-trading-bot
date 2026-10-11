@@ -14,7 +14,7 @@
 
 This project investigates whether a transparent, rule-based trading strategy for Solana-market data can demonstrate robust out-of-sample performance after realistic execution costs and risk constraints. The engineering work builds a reproducible research pipeline covering historical OHLCV ingestion, data-quality validation, a fixed baseline strategy, walk-forward evaluation, training-only parameter optimisation, execution stress tests, statistical robustness checks, and paper-trading safeguards. The principal research concern is not whether a strategy can be made profitable on historical data, but whether any observed edge persists outside the data used to select parameters and remains credible under uncertainty, fees, slippage, liquidity deterioration, execution delay, and changing market conditions.
 
-The current implementation includes historical-data adapters, candle-quality audits, baseline and optimised walk-forward pipelines, execution and accounting models, stress scenarios, and paper-trading state abstractions. A Binance SOLUSDT hourly benchmark for 1 January–31 December 2025 is configured as an independent centralised-exchange research benchmark; GeckoTerminal is kept as a separate decentralised-exchange diagnostic. Provider coverage and access restrictions may prevent a requested experiment from running. Such cases must be reported as blocked or incomplete, not replaced with fabricated observations. The retained 2025 Binance experiment now provides reproducible negative evidence: optimized OOS return is -3.8143%, all nine windows lose money, and the strategy fails performance, stability, stress and statistical acceptance. Current software checks pass on b68db7c, while the required Solana DEX dataset and an elapsed live-market paper acceptance record remain unavailable. Therefore, no claim of profitability or readiness for live execution is made.
+The current implementation includes historical-data adapters, candle-quality audits, baseline and optimised walk-forward pipelines, execution and accounting models, stress scenarios, and paper-trading state abstractions. A Binance SOLUSDT hourly benchmark for 1 January–31 December 2025 is configured as an independent centralised-exchange research benchmark; GeckoTerminal is kept as a separate decentralised-exchange diagnostic. Provider coverage and access restrictions may prevent a requested experiment from running. Such cases must be reported as blocked or incomplete, not replaced with fabricated observations. The retained 2025 Binance experiment now provides reproducible negative evidence: optimized OOS return is -4.3722%, all nine windows lose money, and the strategy fails performance, stability, stress and statistical acceptance. Current software checks pass on 31434ee, while the required Solana DEX dataset and an elapsed live-market paper acceptance record remain unavailable. Earlier volume-stripped results are superseded by the corrected OHLCV run recorded in the latest entry. Therefore, no claim of profitability or readiness for live execution is made.
 
 ## 1. Background and problem statement
 
@@ -149,22 +149,22 @@ A rerun using the same data, code, configuration, and random seed should produce
 
 Dashboard work must not begin until the foundational research and safety work is complete. The gate must fail closed when evidence is missing.
 
-| Gate | Required evidence | Current status |
-|---|---|---|
-| Data provenance and quality | Source, coverage, interval, duplicates, order, OHLCV, gaps audited | Implemented components; end-to-end dataset pass not yet evidenced here |
-| Baseline backtest | Reproducible baseline artifact | Pending verified successful run |
-| Walk-forward OOS | Frozen training-only selection and per-window test metrics | Pipeline exists; successful complete run not yet evidenced here |
-| Anti-overfitting controls | Inner validation, deterministic tie-break, parameter stability | Requires verification/completion |
-| Stress testing | All configured scenarios and per-scenario artifacts | Components exist; successful complete artifact not yet evidenced here |
-| Statistical robustness | Resampling/Monte Carlo and uncertainty reporting | Components exist or are being integrated; complete verified run pending |
-| Paper-trading invariants | Incremental candles, delayed fills, no duplicate fills, close/reduce after halt, exposure gate, persistence/idempotency | Test coverage and implementation verification required |
-| Security | Fail-closed PAPER/LIVE config, secret scan, dependency audit, least-privilege CI | Controls exist; current green security run must be verified |
-| CI | Typecheck, tests, build, security checks all green on current HEAD | Not yet confirmed; recent CI run exposed TypeScript errors that were patched, requiring a fresh run |
-| Research artifact | Machine-readable report with provenance, metrics, gate status, and limitations | Pending verified successful end-to-end run |
-| Paper acceptance period | Sufficiently long, regime-diverse paper observations with monitoring and incident records | Not complete |
-| Live trading | Separate approval and risk review after all evidence gates | **Disabled; not authorised** |
+The [current audit](../docs/pre-dashboard-audit-2026-10-10.md) records all 17 gates and exact implementation/CI evidence. Earlier dated entries preserve historical states.
 
-**Current decision: NOT READY FOR DASHBOARD / NOT READY FOR LIVE TRADING.** This is an evidence status, not a judgement that the strategy must fail. The gate can change only when the required artifacts and checks exist and pass.
+| Gate | Required evidence | Current status |
+| --- | --- | --- |
+| Data provenance and quality | Valid source, range, hourly coverage and OHLCV | CEX dataset PASS (8,760 bars); required DEX history BLOCKED (HTTP 401) |
+| Baseline backtest | Reproducible complete OHLCV artifact | Verified; baseline OOS return -3.6706% |
+| Walk-forward OOS | Frozen training selection and chronological test windows | Nine verified windows; acceptance FAIL, optimized return -4.3722% |
+| Anti-overfitting controls | Inner validation, deterministic selection, minimum trades | Canonical software checks PASS; all nine measured stability neighborhoods FAIL |
+| Stress testing | Actual per-window execution scenarios | Six scenarios executed; all nine OOS stress verdicts FAIL |
+| Statistical robustness | Seeded computations and stated assumptions | Computations verified; positive-lower-bound acceptance FAIL |
+| Paper invariants and persistence | Causal fills, halt, identity, durable recovery | Tested software PASS; single-owner limit |
+| Security and CI | Exact commit installation, audit, secrets and quality | CI, Validation and Security PASS on 31434ee |
+| Research artifact | Reproducible dataset, release, metrics and honest gates | Corrected frozen run/repeat/CI match; failed acceptance preserved |
+| Paper acceptance period | Frozen policy and elapsed regime-diverse observations | BLOCKED / NOT RUN |
+| Dashboard | All mandatory pre-dashboard gates satisfied | NOT VALIDATED; may not begin |
+| Live trading | Separate authorization and risk review | Disabled; not authorised |
 
 ## 7. Ethics, safety and security
 
@@ -274,6 +274,35 @@ A valid operator halt now immediately appears in current risk state. Unstarted c
 
 **Documentation and limits:** Added [paper-session recovery contract](../docs/paper-session-recovery.md); updated the audit, 17-state gate and threat model. A known storage failure may leave a valid prefix without the in-memory halt intent. Explicit recovery must reconcile that prefix and durably record a new recovery HALT before new input. File journals remain single-owner; this is not a deployed service, broker cancellation or elapsed uptime record. Remaining work includes journal identity/recovery edge cases and reproducible acceptance-policy recording. Required DEX history and elapsed paper evidence remain blocked; strategy acceptance fails. Any new strategy hypothesis needs a fresh holdout because 2025 OOS is already inspected. Dashboard and live trading remain gated.
 
+
+### Entry — 2026-10-11 (Australia/Melbourne) — OHLCV research correction, evidence gates and halted recovery
+
+**Revisions and scope:** `76ddf2e` (paper identity/recovery), `f777caa` (historical volume and acceptance), and `31434ee2dedff3cc24762debd11db64c60135e9f` (evidence validation). Frozen corrected report generated at `2026-10-11T02:15:26.181Z`; replay checked at `2026-10-11T02:16:24.912680+00:00`. All are pushed on the existing feature branch. Overall gate remains **NOT VALIDATED**: 11 PASS, 4 FAIL, 2 BLOCKED.
+
+**Material research correction:** `toBacktestCandles` discarded volume and timestamps. Downstream strategy code substituted zero volume, so earlier reports evaluated an incomplete feature set. A rising-candle probe with threshold 0.9 generated a BUY from original OHLCV and no fill after conversion. Conversion now preserves copied OHLCV metadata. End-to-end regressions compare direct and historical backtests/WFO with volume-dependent fills. The public historical acceptance API also confused WFO consistency with execution stress and omitted computed training stability; it now checks every OOS stress verdict, the minimum scenario passing rate and complete training-neighborhood stability. Synthetic positive fixtures verify that valid evidence can still pass; they are not market acceptance evidence.
+
+**Corrected real benchmark:** Same 8,760 hourly 2025 Binance SOLUSDT bars, dataset SHA-256 `646e59f40645ff57ff382d903682d1732b35f9dbdb5c7463f0e4f1feafe48009`, same frozen configuration/thresholds and nine 720-bar OOS windows after 2,160 training bars; the final 120 bars remain excluded. Boundary liquidation and sequential capital/sizing are unchanged. These findings supersede earlier -3.5567% / -3.8143% strategy returns, which remain in prior entries/artifacts for traceability.
+
+| Measured OOS result | Baseline | Optimized | Comparable passive SOL |
+| --- | ---: | ---: | ---: |
+| Return | -3.6706% | -4.3722% | -0.0866% |
+| Maximum drawdown | 3.7079% | 4.4617% | 1.3557% |
+| Closed trades | 585 | 663 | 9 |
+
+Optimized profit factor is 0.566667; expectancy is -0.659458 quote units per closed trade. All nine windows lose money, all nine training neighborhoods fail stability and all nine OOS stress windows fail acceptance. IID mean-window bootstrap 95% interval is [-0.6343%, -0.3456%] (2,000 samples). Fixed-PnL trade-order permutations (5,000 simulations, seed 42) have 95th-percentile drawdown 4.8076%; terminal return is fixed by construction, not predictive uncertainty. This is CEX evidence only. No strategy tuning or threshold relaxation occurred.
+
+**Paper recovery:** New records use canonical version-2 configuration hashes; comparisons sort object keys but preserve array order and supplied values. Equivalent reordered objects restore/retry exactly once; changed values still reject. Legacy unversioned configuration hashes replay with original ordering, including mixed legacy/v2 histories; legacy records are not rewritten. All loaded records validate candle/snapshot/fill shape and identities before selecting a session. `restoreHalted` reconciles the authoritative prefix and returns an owner only after a recovery HALT persists. Tests cover a failed write both absent/present in storage, held durability, failed recovery halt, conflicts and the old owner's storage latch. Stop the previous owner first; multi-process writers and automatic restart detection remain unsupported. See the [recovery contract](../docs/paper-session-recovery.md).
+
+**Fail-closed evidence:** Explicit failed stress verdicts fail even without reasons. Missing sections, contradictory reasons, truthy nonboolean verdicts, unsafe/nonfinite counts, reversed/noninteger date ranges, malformed statistical summaries and invalid metric domains cannot produce readiness PASS. Invalid stress metrics fail even with a zero passing-rate floor. Lossless positive-infinity profit factors remain supported in robustness calculations; dashboard evidence still requires finite metrics under its existing policy.
+
+**Actual verification:** Added 28 cases across three suites: 12 paper recovery/identity, 5 historical evidence and 11 evidence validation. The initial eight paper cases failed before implementation; the review added full unrelated-record validation, mixed-version and held-write coverage. Nine of the first ten gate regressions failed before the fixes. Local typecheck, **59 files / 276 tests**, build, secret-pattern scan of **172 tracked files** and diff checks passed. On `31434ee`, [CI 38104561333](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561333), [Validation 38104561337](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561337), [Security 38104561329](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561329) passed, including reproducible installation and the full high/critical dependency audit. No fresh local registry audit is claimed.
+
+**Artifacts and replication:** Run `SOL_DATASET_FILE=artifacts/ci-721453a/solana-binance-historical-experiment.json.dataset.json SOL_BINANCE_EXPERIMENT_OUTPUT=artifacts/volume-correction-2026-10-11/benchmark.json npm run research:solana:binance` after build. Clean-tree report SHA-256: `74b5fd86d11a50ea90b6b8dfb0d05a175a5c6f1e7a15303cb3858a5d37d697a2`. A second clean-tree run exactly matches summary, gates, complete result, coverage, benchmark, concentration and readiness. Dataset, configuration and comparable passive benchmark exactly match the prior report. Proof: `artifacts/volume-correction-2026-10-11/replay-verification.json`. Generated artifacts stay outside source control.
+
+[Evidence 38104561346](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561346) and [Historical Research 38104561319](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561319) failed. Downloaded exact-commit reports in `artifacts/ci-31434ee/pre-dashboard-evidence/` confirm DEX `DATA_FETCH` HTTP 401 and corrected CEX acceptance failures. CI summary, passive benchmark and research gates match the local corrected run. Workflow artifacts retain the remote copy. A later documentation commit requires its own exact checks.
+
+**Open work:** Legitimate 2025 DEX history and elapsed real-time paper evidence remain blocked. Performance, stability, stress and statistical acceptance fail. Further engineering work should record the acceptance policy and elapsed observation/incident evidence before any paper acceptance claim. New strategy hypotheses require fresh holdout evaluation because 2025 OOS has been inspected. Historical and synthetic replay do not count as elapsed operation. Dashboard remains gated; live trading remains disabled.
+
 ## 10. Project timeline
 
 | Phase | Activities | Exit evidence |
@@ -300,7 +329,7 @@ The schedule is evidence-driven rather than date-driven. No phase should be mark
 
 ## 12. Conclusion and next research direction
 
-The retained 2025 Binance experiment supplies reproducible negative evidence: the optimized strategy loses 3.8143% across the measured OOS windows and fails performance, stability, stress and statistical acceptance. Typecheck, tests, build, security workflows and the corrected simulation accounting are verified on b68db7c. This engineering evidence supports use as a research instrument; it does not establish a profitable strategy or DEX execution readiness.
+The retained 2025 Binance experiment supplies reproducible negative evidence: the optimized strategy loses 4.3722% across the measured OOS windows and fails performance, stability, stress and statistical acceptance. Typecheck, tests, build, security workflows and the corrected simulation accounting are verified on 31434ee. Earlier volume-stripped returns are superseded by this complete OHLCV measurement. This engineering evidence supports use as a research instrument; it does not establish a profitable strategy or DEX execution readiness.
 
 Next work is to obtain legitimate Solana DEX history, investigate new hypotheses using a fresh holdout, and declare an acceptance policy before elapsed paper observation. The journal must retain the failed 2025 findings, provider restriction and operational limits. Dashboard development remains gated by the unresolved pre-dashboard evidence, and live execution requires a separate explicit authorization gate.
 

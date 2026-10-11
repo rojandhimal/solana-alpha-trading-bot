@@ -75,6 +75,11 @@ it("replays a hash-checked synthetic dataset offline with identical research cal
     marketKind: "CEX_BENCHMARK" as const,
     identity: "SYNTHETIC_TEST",
     volumeSemantics: "synthetic volume",
+    experiment: {
+      id: "SYNTHETIC_SUPPLEMENTAL_TEST",
+      purpose: "SUPPLEMENTAL_RECENT_DEX" as const,
+      required2025GateSatisfied: false as const,
+    },
   };
   const first = await writeResearchReport({
     ...common,
@@ -92,6 +97,20 @@ it("replays a hash-checked synthetic dataset offline with identical research cal
     outputPath: join(directory, "second.json"),
   });
   expect(first.report.result).toBeDefined();
+  expect(first.report.experiment).toEqual(common.experiment);
+  expect(second.report.experiment).toEqual(common.experiment);
+  expect(
+    (
+      first.report.readiness as {
+        status: string;
+        dashboardMayBegin: boolean;
+        blockers: string[];
+      }
+    ).status,
+  ).toBe("NOT_VALIDATED");
+  expect((first.report.readiness as { blockers: string[] }).blockers).toContain(
+    "Supplemental recent DEX research does not satisfy the required 2025 DEX dataset gate",
+  );
   expect(second.report.result).toEqual(first.report.result);
   expect(second.report.summary).toEqual(first.report.summary);
   expect(second.report.datasetSha256).toEqual(first.report.datasetSha256);

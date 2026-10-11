@@ -55,6 +55,10 @@ npm run build
 npm run research:solana:binance
 ```
 
+For separate keyless recent DEX research, run `npm run research:solana:free-dex` after building. This supplemental experiment uses the existing WSOL pool, fixes its hourly period to 2026-05-01 through 2026-09-30 (3,672 expected bars), and keeps the strategy, walk-forward, stress and acceptance settings unchanged. It writes `solana-free-recent-dex-experiment.json` and a separate dataset cache. Public provider limits or gaps fail the experiment; this period does not satisfy the required 2025 DEX gate. `research:solana` still runs that original 2025 experiment.
+
+Use `SOL_FREE_DEX_EXPERIMENT_OUTPUT` for a separate report path and `SOL_FREE_DEX_DATASET_FILE` to replay its provenance-checked cache. Existing `SOL_EXPERIMENT_OUTPUT` and `SOL_DATASET_FILE` do not switch this supplemental command's scope.
+
 ## Data-provider roles
 
 - **DEX research:** GeckoTerminal/Birdeye sources are intended for DEX-specific historical research where the provider legitimately supplies the required period.

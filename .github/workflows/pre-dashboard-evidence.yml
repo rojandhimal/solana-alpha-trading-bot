@@ -60,6 +60,7 @@ jobs:
         run: |
           test -f dist/apps/research/src/solana-historical-experiment.js
           test -f dist/apps/research/src/solana-binance-benchmark.js
+          test -f dist/apps/research/src/solana-free-dex-experiment.js
 
       # This is intentionally fail-closed: provider limitations are not research evidence.
       - name: Require real DEX historical evidence
@@ -72,6 +73,13 @@ jobs:
         run: npm run research:solana:binance
         env:
           SOL_BINANCE_EXPERIMENT_OUTPUT: artifacts/solana-binance-historical-experiment.json
+
+      # Supplemental recent history never replaces the required full-year 2025 gate.
+      - name: Record free recent DEX research
+        if: always()
+        run: npm run research:solana:free-dex
+        env:
+          SOL_FREE_DEX_EXPERIMENT_OUTPUT: artifacts/solana-free-dex-experiment.json
 
       - name: Preserve evidence even when validation fails
         if: always()

@@ -26,6 +26,11 @@ export interface ResearchReportInput {
   identity: string;
   volumeSemantics: string;
   cachedDatasetPath?: string;
+  experiment?: {
+    id: string;
+    purpose: "SUPPLEMENTAL_RECENT_DEX";
+    required2025GateSatisfied: false;
+  };
 }
 /** Always preserve an explicit failure artifact; never turn provider failure into validation. */
 export async function writeResearchReport(
@@ -196,6 +201,7 @@ export async function writeResearchReport(
       commitSha,
       release: { commitSha, branch, dependencyLockSha256 },
       workingTreeDirty: dirty,
+      ...(input.experiment ? { experiment: input.experiment } : {}),
       provenance,
       datasetSha256: createHash("sha256")
         .update(JSON.stringify(bars))
@@ -306,6 +312,11 @@ export async function writeResearchReport(
         blockers: [
           "Exact candidate CI/security evidence must be evaluated separately",
           "Elapsed paper-trading acceptance is not supplied",
+          ...(input.experiment
+            ? [
+                "Supplemental recent DEX research does not satisfy the required 2025 DEX dataset gate",
+              ]
+            : []),
           ...(input.marketKind === "CEX_BENCHMARK"
             ? ["CEX benchmark does not validate Solana DEX execution"]
             : []),
@@ -344,6 +355,7 @@ export async function writeResearchReport(
       commitSha,
       release: { commitSha, branch, dependencyLockSha256 },
       workingTreeDirty: dirty,
+      ...(input.experiment ? { experiment: input.experiment } : {}),
       provenance,
       configuration: input.config,
       status: "NOT_VALIDATED",
@@ -363,6 +375,13 @@ export async function writeResearchReport(
         status: "NOT_VALIDATED",
         dashboardMayBegin: false,
         strategy: providerBlocked ? "BLOCKED" : "FAIL",
+        ...(input.experiment
+          ? {
+              blockers: [
+                "Supplemental recent DEX research does not satisfy the required 2025 DEX dataset gate",
+              ],
+            }
+          : {}),
       },
     };
   }

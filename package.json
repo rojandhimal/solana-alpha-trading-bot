@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "research:solana": "node dist/apps/research/src/solana-historical-experiment.js",
+    "research:solana:free-dex": "node dist/apps/research/src/solana-free-dex-experiment.js",
     "research:solana:binance": "node dist/apps/research/src/solana-binance-benchmark.js",
     "research:solana:coinbase": "node dist/apps/research/src/solana-coinbase-benchmark.js",
     "security:secrets": "node scripts/check-secrets.mjs"

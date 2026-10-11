@@ -1,13 +1,17 @@
 import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { z } from "zod";
 import {
   PaperTradingState,
   type PaperTradingStateConfig,
   type PaperTradingSnapshot,
 } from "./paper-trading-state.js";
 import type { StrategyCandle } from "./alpha-strategy.js";
-import type { ExecutionFill } from "./execution-model.js";
+import {
+  validateExecutionFills,
+  type ExecutionFill,
+} from "./execution-model.js";
 const REALTIME_INTERVAL_MS = 60 * 60 * 1000;
 const MAX_REALTIME_AGE_MS = 2 * REALTIME_INTERVAL_MS;
 
@@ -35,6 +39,8 @@ export interface PaperJournalRecord {
   sequence: number;
   eventId: string;
   configHash: string;
+  /** Missing means legacy JSON insertion-order hashing; new records use sorted keys. */
+  configHashVersion?: 2;
   event: PaperEvent;
   snapshot: PaperTradingSnapshot;
   fills: readonly ExecutionFill[];
@@ -44,13 +50,161 @@ export interface PaperEventJournal {
   load(): Promise<readonly PaperJournalRecord[]>;
   append(record: PaperJournalRecord): Promise<void>;
 }
-function fingerprint(value: unknown): string {
+function legacyFingerprint(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+// JSON object key order has no semantic meaning. Array order remains significant.
+function canonicalJson(value: unknown, ancestors = new Set<object>()): string {
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean")
+    return JSON.stringify(value);
+  if (typeof value === "number" && Number.isFinite(value))
+    return JSON.stringify(value);
+  if (typeof value !== "object" || ancestors.has(value))
+    throw new Error("invalid paper journal JSON value");
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value))
+      return `[${Array.from(value, (child) => canonicalJson(child, ancestors)).join(",")}]`;
+    if (Object.getPrototypeOf(value) !== Object.prototype)
+      throw new Error("invalid paper journal JSON object");
+    return `{${Object.entries(value)
+      .filter(([, child]) => child !== undefined)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(
+        ([key, child]) =>
+          `${JSON.stringify(key)}:${canonicalJson(child, ancestors)}`,
+      )
+      .join(",")}}`;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+function fingerprint(value: unknown): string {
+  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+const finite = z.number().finite();
+const count = finite.int().nonnegative().safe();
+const candleSchema = z
+  .object({
+    open: finite.positive(),
+    high: finite.positive(),
+    low: finite.positive(),
+    close: finite.positive(),
+    volume: finite.nonnegative(),
+    timestamp: count.optional(),
+  })
+  .refine(
+    (candle) =>
+      candle.high >= Math.max(candle.open, candle.close) &&
+      candle.low <= Math.min(candle.open, candle.close) &&
+      candle.high >= candle.low,
+  );
+const snapshotSchema = z.object({
+  candleCount: count,
+  fillCount: count,
+  accounting: z.object({
+    initialCapital: finite.positive(),
+    finalEquity: finite,
+    netProfit: finite,
+    realizedPnl: finite,
+    feesPaid: finite.nonnegative(),
+    completedTrades: count,
+    equityCurve: z.array(
+      z.object({
+        index: count,
+        cash: finite,
+        positionQuantity: finite,
+        averageEntryPrice: finite.nonnegative(),
+        positionValue: finite,
+        equity: finite,
+        realizedPnl: finite,
+        unrealizedPnl: finite,
+        feesPaid: finite.nonnegative(),
+        drawdownPct: finite.nonnegative(),
+      }),
+    ),
+  }),
+  risk: z.object({
+    halted: z.boolean(),
+    reasons: z.array(z.string().trim().min(1)),
+    maxObservedDrawdownPct: finite.nonnegative(),
+    maxObservedPositionNotionalPct: finite.nonnegative(),
+  }),
+});
+function validateRecord(value: unknown): asserts value is PaperJournalRecord {
+  if (
+    !isObject(value) ||
+    typeof value.sessionId !== "string" ||
+    !value.sessionId.trim() ||
+    typeof value.eventId !== "string" ||
+    !value.eventId.trim() ||
+    !Number.isSafeInteger(value.sequence) ||
+    (value.sequence as number) < 0 ||
+    typeof value.configHash !== "string" ||
+    !/^[a-f0-9]{64}$/.test(value.configHash) ||
+    !isObject(value.event) ||
+    !isObject(value.snapshot) ||
+    !Array.isArray(value.fills)
+  )
+    throw new Error("invalid paper journal record");
+  if (value.configHashVersion !== undefined && value.configHashVersion !== 2)
+    throw new Error("unsupported paper journal config hash version");
+  const event = value.event;
+  if (
+    event.kind === "CANDLE"
+      ? !isObject(event.candle)
+      : event.kind === "HALT"
+        ? typeof event.reason !== "string" || !event.reason.trim()
+        : true
+  )
+    throw new Error("invalid paper journal event");
+  if (event.kind === "CANDLE" && !candleSchema.safeParse(event.candle).success)
+    throw new Error("invalid paper journal candle");
+  const snapshot = snapshotSchema.safeParse(value.snapshot);
+  if (
+    !snapshot.success ||
+    snapshot.data.candleCount !== snapshot.data.accounting.equityCurve.length ||
+    snapshot.data.fillCount !== value.fills.length ||
+    snapshot.data.accounting.equityCurve.some(
+      (point, index) => point.index !== index,
+    )
+  )
+    throw new Error("invalid paper journal snapshot");
+  try {
+    if (value.fills.some((fill) => !isObject(fill)))
+      throw new Error("invalid fill");
+    validateExecutionFills(value.fills as ExecutionFill[]);
+    if (
+      value.fills.some(
+        (fill) => fill.executionIndex >= snapshot.data.candleCount,
+      )
+    )
+      throw new Error("fill exceeds journal candle count");
+  } catch {
+    throw new Error("invalid paper journal fills");
+  }
+  canonicalJson(value); // Reject non-finite numbers and non-JSON data before persistence.
+}
+function validateHistory(
+  value: unknown,
+): asserts value is PaperJournalRecord[] {
+  if (!Array.isArray(value)) throw new Error("invalid paper journal");
+  const checked: PaperJournalRecord[] = [];
+  for (const record of value) {
+    if (!checkAppend(checked, record))
+      throw new Error("duplicate persisted journal event");
+    checked.push(record);
+  }
 }
 function checkAppend(
   records: readonly PaperJournalRecord[],
   record: PaperJournalRecord,
 ): boolean {
+  validateRecord(record);
   if (
     !record.sessionId.trim() ||
     !record.eventId.trim() ||
@@ -90,8 +244,8 @@ export class FilePaperEventJournal implements PaperEventJournal {
   async load(): Promise<readonly PaperJournalRecord[]> {
     try {
       const parsed: unknown = JSON.parse(await readFile(this.path, "utf8"));
-      if (!Array.isArray(parsed)) throw new Error("invalid paper journal");
-      return parsed as PaperJournalRecord[];
+      validateHistory(parsed);
+      return parsed;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
       throw error;
@@ -164,8 +318,13 @@ export class PersistedPaperTradingSession {
       config,
     );
     const all = await journal.load();
+    validateHistory(all);
     for (const record of all.filter((r) => r.sessionId === sessionId)) {
-      if (record.configHash !== fingerprint(session.config))
+      const configHash =
+        record.configHashVersion === 2
+          ? fingerprint(session.config)
+          : legacyFingerprint(session.config);
+      if (record.configHash !== configHash)
         throw new Error("paper journal config mismatch");
       if (!checkAppend(session.records, record))
         throw new Error("duplicate persisted journal event");
@@ -178,6 +337,18 @@ export class PersistedPaperTradingSession {
         throw new Error("paper journal replay mismatch");
       session.records.push(structuredClone(record));
     }
+    return session;
+  }
+  /** Stop the previous owner first. Returns only after a recovery halt is durable. */
+  static async restoreHalted(
+    journal: PaperEventJournal,
+    sessionId: string,
+    config: PaperTradingStateConfig,
+    haltEventId: string,
+    reason: string,
+  ): Promise<PersistedPaperTradingSession> {
+    const session = await this.restore(journal, sessionId, config);
+    await session.halt(haltEventId, reason);
     return session;
   }
   private apply(state: PaperTradingState, event: PaperEvent): void {
@@ -254,6 +425,7 @@ export class PersistedPaperTradingSession {
         sequence: this.records.length,
         eventId,
         configHash: fingerprint(this.config),
+        configHashVersion: 2,
         event,
         snapshot,
         fills: trial.getFills(),

@@ -16,6 +16,8 @@ const result = await writeResearchReport({
     : {}),
   source: new GeckoTerminalOhlcvSource({
     poolAddress: SOL_GECKOTERMINAL_POOL_ADDRESS,
+    tokenAddress: config.query.symbol,
+    minRequestIntervalMs: 6500,
   }),
   config,
   outputPath,

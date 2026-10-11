@@ -22,10 +22,20 @@ const responseSchema = z.object({
       ohlcv_list: z.array(z.array(numericValue).length(6)),
     }),
   }),
+  meta: z
+    .object({
+      base: z.object({ address: z.string().min(1) }),
+      quote: z.object({ address: z.string().min(1) }),
+    })
+    .optional(),
 });
 
 export interface GeckoTerminalOhlcvSourceOptions {
   poolAddress: string;
+  /** Pin the requested asset instead of assuming the provider's base token. */
+  tokenAddress?: string;
+  /** Minimum spacing between pages; public research runners use 6500 ms. */
+  minRequestIntervalMs?: number;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   maxRetries?: number;
@@ -44,6 +54,8 @@ const DEFAULT_API_VERSION = "20230203";
 export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   private readonly baseUrl: string;
   private readonly poolAddress: string;
+  private readonly tokenAddress: string | undefined;
+  private readonly minRequestIntervalMs: number;
   private readonly fetchImpl: typeof fetch;
   private readonly maxRetries: number;
   private readonly retryBaseDelayMs: number;
@@ -52,6 +64,18 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
   constructor(options: GeckoTerminalOhlcvSourceOptions) {
     if (!options.poolAddress.trim()) throw new Error("poolAddress is required");
+    if (
+      options.tokenAddress !== undefined &&
+      !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(options.tokenAddress)
+    )
+      throw new Error("tokenAddress must be a Solana token address");
+    if (
+      options.minRequestIntervalMs !== undefined &&
+      (!Number.isFinite(options.minRequestIntervalMs) ||
+        options.minRequestIntervalMs < 0 ||
+        options.minRequestIntervalMs > 30_000)
+    )
+      throw new Error("minRequestIntervalMs must be between 0 and 30000");
     if (
       options.maxRetries !== undefined &&
       (!Number.isInteger(options.maxRetries) || options.maxRetries < 0)
@@ -76,6 +100,8 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
     this.poolAddress = options.poolAddress;
+    this.tokenAddress = options.tokenAddress;
+    this.minRequestIntervalMs = options.minRequestIntervalMs ?? 0;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.retryBaseDelayMs =
@@ -88,6 +114,8 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
 
   async load(query: HistoricalDataQuery): Promise<readonly OhlcvBar[]> {
     validateProviderQuery(query);
+    if (this.tokenAddress !== undefined && query.symbol !== this.tokenAddress)
+      throw new Error("query symbol does not match configured tokenAddress");
     if (!query.symbol.trim()) throw new Error("symbol is required");
     if (!query.interval.trim()) throw new Error("interval is required");
     if (
@@ -106,6 +134,7 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
         ? undefined
         : Math.floor(query.endTime / 1000) + 1;
 
+    let pageCount = 0;
     for (;;) {
       const url = new URL(
         `${this.baseUrl}/networks/solana/pools/${pool}/ohlcv/${timeframe}`,
@@ -113,11 +142,27 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
       url.searchParams.set("currency", "usd");
       url.searchParams.set("limit", String(this.pageLimit));
       url.searchParams.set("aggregate", String(toAggregate(query.interval)));
+      url.searchParams.set("include_empty_intervals", "false");
+      if (this.tokenAddress !== undefined)
+        url.searchParams.set("token", this.tokenAddress);
       if (beforeTimestamp !== undefined)
         url.searchParams.set("before_timestamp", String(beforeTimestamp));
 
+      if (pageCount > 0 && this.minRequestIntervalMs > 0)
+        await this.sleepImpl(this.minRequestIntervalMs);
       const response = await this.fetchWithRetry(url);
+      pageCount += 1;
       const parsed = responseSchema.parse(await response.json());
+      if (
+        this.tokenAddress !== undefined &&
+        (!parsed.meta ||
+          ![parsed.meta.base.address, parsed.meta.quote.address].includes(
+            this.tokenAddress,
+          ))
+      )
+        throw new Error(
+          "GeckoTerminal response token metadata does not match requested asset",
+        );
       const page = parsed.data.attributes.ohlcv_list.map(toOhlcvBar);
       if (page.length === 0) break;
 
@@ -168,15 +213,6 @@ export class GeckoTerminalOhlcvSource implements HistoricalDataSource {
   }
 }
 
-async function readErrorBody(response: Response): Promise<string> {
-  try {
-    const text = (await response.text()).trim();
-    return text.slice(0, 500).replace(/\s+/g, " ");
-  } catch {
-    return "";
-  }
-}
-
 function toGeckoTimeframe(interval: string): "minute" | "hour" | "day" {
   const normalized = interval.trim().toUpperCase();
   if (["1M", "5M", "15M"].includes(normalized)) return "minute";
@@ -208,6 +244,8 @@ function toOhlcvBar(row: readonly number[]): OhlcvBar {
     throw new Error("GeckoTerminal OHLCV row is incomplete");
   }
   if (
+    !Number.isSafeInteger(timestampSeconds) ||
+    !Number.isSafeInteger(timestampSeconds * 1000) ||
     timestampSeconds <= 0 ||
     open <= 0 ||
     high <= 0 ||

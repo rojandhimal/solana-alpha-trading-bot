@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "date": "2026-10-11",
   "branch": "feature/walk-forward-integration",
-  "verifiedImplementationCommit": "31434ee2dedff3cc24762debd11db64c60135e9f",
+  "verifiedImplementationCommit": "d1d4a90d6e57f723e46700d302b4dd77ab56c2b1",
   "localTests": {
-    "files": 59,
-    "passed": 276
+    "files": 61,
+    "passed": 296
   },
   "ciEvidence": {
-    "commit": "31434ee2dedff3cc24762debd11db64c60135e9f",
-    "ci": 38104561333,
-    "validation": 38104561337,
-    "security": 38104561329,
-    "preDashboardEvidence": 38104561346,
-    "historicalResearch": 38104561319,
+    "commit": "d1d4a90d6e57f723e46700d302b4dd77ab56c2b1",
+    "ci": 38105483860,
+    "validation": 38105483846,
+    "security": 38105483924,
+    "preDashboardEvidence": 38105483825,
+    "historicalResearch": 38105483851,
     "conclusions": {
       "ci": "success",
       "validation": "success",
@@ -61,19 +61,19 @@
       "id": 2,
       "name": "Dependency vulnerability audit",
       "status": "PASS",
-      "evidence": "Full dependency high/critical audit passed in Security CI on 31434ee. No fresh successful local registry audit is claimed."
+      "evidence": "Full dependency high/critical audit passed in Security CI on d1d4a90. No fresh successful local registry audit is claimed."
     },
     {
       "id": 3,
       "name": "Typecheck, tests and build",
       "status": "PASS",
-      "evidence": "Local typecheck, 59 files / 276 tests, build and diff check passed. Exact 31434ee CI and Validation passed, including reproducible npm ci; secret-pattern scan covered 172 tracked files."
+      "evidence": "Local typecheck, 61 files / 296 tests, build and diff check passed. Exact d1d4a90 CI and Validation passed, including reproducible npm ci; secret-pattern scan covered 177 tracked files."
     },
     {
       "id": 4,
       "name": "Historical data quality and provenance",
       "status": "BLOCKED",
-      "evidence": "Binance CEX dataset PASS: 8760 hourly bars for 2025, no quality errors, SHA-256 recorded. Required Solana DEX dataset unavailable: GeckoTerminal HTTP 401."
+      "evidence": "2025 CEX quality PASS (8760 Binance bars). Separate free recent Raydium DEX quality PASS (3672 hourly May–September 2026 bars, no gaps). Required full-year 2025 DEX remains BLOCKED: GeckoTerminal HTTP 401; SQD supplied sampled raw 2025 records but no reconstructed complete OHLCV dataset."
     },
     {
       "id": 5,
@@ -139,13 +139,13 @@
       "id": 15,
       "name": "Reproducible end-to-end research report",
       "status": "PASS",
-      "evidence": "Corrected real CEX report and frozen dataset retained. Repeated clean-tree research sections and exact CI summary/benchmark/gates match. Unchanged configuration/dataset/passive benchmark verified; failed acceptance returns exit 1; DEX HTTP 401 artifact retained."
+      "evidence": "Clean frozen CEX and free recent DEX reports retained. Repeated recent research sections and exact CI dataset/results/gates match; failed acceptance returns exit 1. Required 2025 DEX HTTP 401 artifact retained; supplemental scope cannot satisfy that gate."
     },
     {
       "id": 16,
       "name": "CI reliability",
       "status": "PASS",
-      "evidence": "CI, Validation and Security passed on 31434ee. Downloaded Evidence artifacts confirm provider HTTP 401 and corrected failed strategy acceptance. Later commits require separate CI."
+      "evidence": "CI, Validation and Security passed on d1d4a90. Downloaded Evidence artifacts confirm required 2025 provider HTTP 401, unchanged corrected CEX failures and matching free recent DEX negative results. Later commits require separate CI."
     },
     {
       "id": 17,
@@ -239,5 +239,162 @@
       "medianMaxDrawdownPct": 4.473944854775098,
       "upperMaxDrawdownPct": 4.807556603513537
     }
+  },
+  "previousSoftwareEvidence": {
+    "implementationCommit": "31434ee2dedff3cc24762debd11db64c60135e9f",
+    "localTests": {
+      "files": 59,
+      "passed": 276
+    },
+    "ciEvidence": {
+      "commit": "31434ee2dedff3cc24762debd11db64c60135e9f",
+      "ci": 38104561333,
+      "validation": 38104561337,
+      "security": 38104561329,
+      "preDashboardEvidence": 38104561346,
+      "historicalResearch": 38104561319,
+      "conclusions": {
+        "ci": "success",
+        "validation": "success",
+        "security": "success",
+        "preDashboardEvidence": "failure",
+        "historicalResearch": "failure"
+      }
+    }
+  },
+  "freeDataPolicy": {
+    "paidAccessAuthorized": false,
+    "credentialsAdded": false,
+    "sourceAssessment": "docs/free-data-sources.md",
+    "required2025DexGate": "BLOCKED",
+    "olderHistoryCandidate": "SQD public raw Solana archive: sampled2025 records verified; complete swap decoding/aggregation not implemented or validated"
+  },
+  "supplementalFreeDexEvidence": {
+    "implementationCommit": "d1d4a90d6e57f723e46700d302b4dd77ab56c2b1",
+    "experiment": {
+      "id": "SOLANA_FREE_RECENT_DEX_2026_MAY_SEP",
+      "purpose": "SUPPLEMENTAL_RECENT_DEX",
+      "required2025GateSatisfied": false
+    },
+    "provenance": {
+      "provider": "GeckoTerminal public API",
+      "marketKind": "SOLANA_DEX_POOL",
+      "identity": "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2",
+      "volumeSemantics": "USD volume",
+      "timestampUnit": "milliseconds UTC",
+      "retrievedAt": "2026-10-11T02:31:04.179Z",
+      "requestedRange": {
+        "symbol": "So11111111111111111111111111111111111111112",
+        "startTime": 1777593600000,
+        "endTime": 1790809200000,
+        "interval": "1H"
+      }
+    },
+    "datasetSha256": "620f2b52577dac4b9b837432c90bdecea050df2ff60c369865e9c3daeb0f558a",
+    "quality": {
+      "valid": true,
+      "barCount": 3672,
+      "duplicateTimestampCount": 0,
+      "outOfOrderCount": 0,
+      "invalidCandleCount": 0,
+      "invalidVolumeCount": 0,
+      "gapCount": 0,
+      "gapTimestamps": [],
+      "largestGapMs": 0,
+      "errors": [],
+      "firstTimestamp": 1777593600000,
+      "lastTimestamp": 1790809200000,
+      "coverageStart": 1777593600000,
+      "coverageEnd": 1790809200000
+    },
+    "summary": {
+      "symbol": "So11111111111111111111111111111111111111112",
+      "barCount": 3672,
+      "baselineReturnPct": -0.28518281192027645,
+      "optimizedReturnPct": -0.33387487484787925,
+      "baselineMaxDrawdownPct": 0.443211059126551,
+      "optimizedMaxDrawdownPct": 0.4858763440741801,
+      "baselineTradeCount": 136,
+      "optimizedTradeCount": 134,
+      "rangeStart": 1777593600000,
+      "rangeEnd": 1790809200000
+    },
+    "optimizedOutOfSample": {
+      "totalReturnPct": -0.33387487484787925,
+      "netProfit": -33.387487484787925,
+      "maxDrawdownPct": 0.4858763440741801,
+      "tradeCount": 134,
+      "winRatePct": 16.417910447761194,
+      "profitFactor": 0.6486674882234533,
+      "expectancy": -0.2491603543641082,
+      "averageWin": 2.8019788194559325,
+      "averageLoss": 0.8484912635073298
+    },
+    "comparableOosBenchmark": {
+      "totalReturnPct": 0.47773118391636676,
+      "netProfit": 47.77311839163667,
+      "maxDrawdownPct": 0.13889344071085977,
+      "tradeCount": 2,
+      "winRatePct": 100,
+      "profitFactor": "Infinity",
+      "expectancy": 23.88655919581773,
+      "averageWin": 23.88655919581773,
+      "averageLoss": 0
+    },
+    "evaluationCoverage": {
+      "initialTrainingBars": 2160,
+      "oosBars": 1440,
+      "firstOosTimestamp": 1785369600000,
+      "lastOosTimestamp": 1790550000000,
+      "unusedTrailingBars": 72,
+      "policy": "Only complete test windows are evaluated; initial training and trailing incomplete windows are excluded from OOS performance"
+    },
+    "researchGates": {
+      "passed": false,
+      "reasons": [
+        "insufficient walk-forward windows: required at least 5",
+        "optimized profit factor 0.65 is below 1.05 gate",
+        "optimized expectancy is not positive",
+        "profitable OOS window rate 0.00% is below 50% gate",
+        "95% bootstrap CI lower bound -0.1748% is not positive",
+        "Training parameter neighborhood stability failed",
+        "One or more OOS stress windows failed acceptance"
+      ],
+      "statistical": {
+        "oosWindowReturnCi": {
+          "estimate": -0.16707671181506178,
+          "lowerPct": -0.17480648584141864,
+          "upperPct": -0.15934693778870496,
+          "confidencePct": 95,
+          "samples": 2000
+        },
+        "monteCarlo": {
+          "simulations": 5000,
+          "seed": 42,
+          "medianReturnPct": -0.3338748748478948,
+          "lowerReturnPct": -0.3338748748478948,
+          "upperReturnPct": -0.3338748748478948,
+          "probabilityOfLossPct": 100,
+          "medianMaxDrawdownPct": 0.41881167227586635,
+          "upperMaxDrawdownPct": 0.5467276683745242
+        }
+      }
+    },
+    "readiness": {
+      "status": "NOT_VALIDATED",
+      "software": "NOT_RUN",
+      "strategy": "FAIL",
+      "dashboardMayBegin": false,
+      "blockers": [
+        "Exact candidate CI/security evidence must be evaluated separately",
+        "Elapsed paper-trading acceptance is not supplied",
+        "Supplemental recent DEX research does not satisfy the required 2025 DEX dataset gate"
+      ]
+    },
+    "report": "artifacts/free-dex-2026-10-11/report.json",
+    "reportSha256": "00544fc3a9232e1754e580d5d8ed1801ddd7217896391aeccc1c1398b35900e9",
+    "replayVerification": "artifacts/free-dex-2026-10-11/replay-verification.json",
+    "ciReport": "artifacts/ci-d1d4a90/pre-dashboard-evidence/solana-free-dex-experiment.json",
+    "ciResearchSectionsMatch": true
   }
 }

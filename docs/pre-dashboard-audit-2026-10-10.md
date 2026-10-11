@@ -6,7 +6,7 @@ Last updated 11 October 2026 (Australia/Melbourne). Earlier entries retain their
 
 Software verification and strategy acceptance are separate. Verified engineering checks pass; real strategy evidence fails, required DEX history and elapsed paper acceptance are blocked. This is not a profitability claim or authorization for live trading.
 
-Branch: `feature/walk-forward-integration`. Initial HEAD: `8d2d661`. Verified implementation/evidence commit: `31434ee2dedff3cc24762debd11db64c60135e9f`. Later documentation or test commits require their own exact-commit CI; this report does not manufacture that evidence.
+Branch: `feature/walk-forward-integration`. Initial HEAD: `8d2d661`. Verified implementation/evidence commit: `d1d4a90d6e57f723e46700d302b4dd77ab56c2b1`. Later documentation or test commits require their own exact-commit CI; this report does not manufacture that evidence.
 
 **Evidence correction:** Performance snapshots through b68db7c dropped volume during historical conversion. They are retained as superseded observations, not results of the complete configured OHLCV strategy. The latest entry records the corrected run with unchanged data, configuration and thresholds.
 
@@ -26,11 +26,11 @@ Branch: `feature/walk-forward-integration`. Initial HEAD: `8d2d661`. Verified im
 
 ## Checks actually run
 
-Local: TypeScript typecheck, **59 source test files / 276 tests**, build, secret-pattern scan of **172 tracked files** and `git diff --check` passed. Compiled duplicate tests are excluded.
+Local: TypeScript typecheck, **61 source test files / 296 tests**, build, secret-pattern scan of **177 tracked files** and `git diff --check` passed. Compiled duplicate tests are excluded.
 
-On implementation `31434ee`, [CI 38104561333](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561333), [Validation 38104561337](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561337), [Security 38104561329](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561329) passed, including reproducible installation, quality checks and full high/critical dependency audit. Earlier local network failures are not successful audits.
+On implementation `d1d4a90`, [CI 38105483860](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38105483860), [Validation 38105483846](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38105483846), and [Security 38105483924](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38105483924) pass, including reproducible installation and full high/critical dependency audit. No fresh successful local registry audit is claimed.
 
-[Evidence 38104561346](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561346) and [Historical Research 38104561319](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38104561319) failed. Downloaded exact-commit reports confirm DEX HTTP 401 and corrected CEX performance, stability, stress and statistical acceptance failures. Local repeated research sections and CI summary/benchmark/gates match. No strategy thresholds were lowered.
+[Evidence 38105483825](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38105483825) and [Historical 38105483851](https://github.com/rojandhimal/solana-alpha-trading-bot/actions/runs/38105483851) fail required acceptance. Downloaded exact-commit reports confirm 2025 DEX HTTP 401, unchanged corrected CEX losses and independently matching free recent DEX dataset/research results. Failed acceptance is retained, with no threshold relaxation.
 
 ### Continued engineering — 03:59 UTC
 
@@ -59,6 +59,12 @@ Clean-tree replay at b68db7c exactly matches the retained summary and comparable
 
 Corrected frozen report: `artifacts/volume-correction-2026-10-11/benchmark.json`, SHA-256 `74b5fd86d11a50ea90b6b8dfb0d05a175a5c6f1e7a15303cb3858a5d37d697a2`. The exact repeated result and CI summary/benchmark/gates match. Configuration, dataset and passive OOS benchmark remain unchanged. Verification: `artifacts/volume-correction-2026-10-11/replay-verification.json`; CI evidence: `artifacts/ci-31434ee/pre-dashboard-evidence/` and linked workflow artifact. Exit 1 reflects failed strategy acceptance.
 
+### Free data continuation — 11 October 2026 (Melbourne)
+
+`6ec07f3` pins DEX token identity and paces public requests; `d1d4a90` adds separate keyless May–September 2026 research without changing 2025 scope, strategy or thresholds. Actual 3,672 hourly pool bars pass strict quality checks. Baseline/optimized/passive comparable OOS returns are -0.285183% / -0.333875% / +0.477731%. Only two complete windows exist, both lose and fail stress; both training stability checks fail. The report explicitly says the mandatory 2025 gate is not satisfied. Repeated clean-tree and full CI research sections/hash match; proof is `artifacts/free-dex-2026-10-11/replay-verification.json`.
+
+SQD public probes verify raw 2025 records for this pool; complete successful-swap decoding and hourly aggregation are still required before claiming dataset coverage. See [free source policy and candidates](free-data-sources.md) and the latest entries in both journals. Paid accounts/access were not added. Overall 17 states remain 11 PASS, 4 FAIL, 2 BLOCKED.
+
 ## Readiness checklist
 
 PASS requires actual verification; FAIL means required acceptance failed; BLOCKED names an external/evidence dependency; NOT RUN means no verification occurred. The machine-readable equivalent is `docs/pre-dashboard-readiness.json`.
@@ -66,9 +72,9 @@ PASS requires actual verification; FAIL means required acceptance failed; BLOCKE
 | # | Required gate | State | Evidence |
 | --- | --- | --- | --- |
 | 1 | Security configuration and secret handling | **PASS** | PAPER defaults/key rejection tests; tracked-file scan; read-only research workflows. No signer or live broker connected. |
-| 2 | Dependency vulnerability audit | **PASS** | Full dependency high/critical audit passed in Security CI on 31434ee. No fresh successful local registry audit is claimed. |
-| 3 | Typecheck, tests and build | **PASS** | Local typecheck, 59 files / 276 tests, build and diff check passed. Exact 31434ee CI and Validation passed, including reproducible npm ci; secret-pattern scan covered 172 tracked files. |
-| 4 | Historical data quality and provenance | **BLOCKED** | Binance CEX dataset PASS: 8760 hourly bars for 2025, no quality errors, SHA-256 recorded. Required Solana DEX dataset unavailable: GeckoTerminal HTTP 401. |
+| 2 | Dependency vulnerability audit | **PASS** | Full dependency high/critical audit passed in Security CI on d1d4a90. No fresh successful local registry audit is claimed. |
+| 3 | Typecheck, tests and build | **PASS** | Local typecheck, 61 files / 296 tests, build and diff check passed. Exact d1d4a90 CI and Validation passed, including reproducible npm ci; secret-pattern scan covered 177 tracked files. |
+| 4 | Historical data quality and provenance | **BLOCKED** | 2025 CEX quality PASS (8760 Binance bars). Separate free recent Raydium DEX quality PASS (3672 hourly May–September 2026 bars, no gaps). Required full-year 2025 DEX remains BLOCKED: GeckoTerminal HTTP 401; SQD supplied sampled raw 2025 records but no reconstructed complete OHLCV dataset. |
 | 5 | Backtesting accounting correctness | **PASS** | Shared fill/arithmetic checks, small terminal liquidation and sequential OOS capital reconcile equity/trade PnL. Historical conversion now preserves OHLCV/timestamps; direct and historical runners agree on volume-dependent fills. |
 | 6 | No look-ahead leakage | **PASS** | Completed-candle signals execute at next open; delayed prefixes match replay. Continuous OOS preserves history and pending targets across parameter changes; gaps/invalid indices rejected. Risk checks use opening prices. |
 | 7 | Walk-forward validation | **FAIL** | Train-only selection and nine sequential OOS windows verified; corrected optimized CEX OOS -4.3722%, zero profitable windows and negative expectancy fail acceptance. |
@@ -79,8 +85,8 @@ PASS requires actual verification; FAIL means required acceptance failed; BLOCKE
 | 12 | Stateful paper-trading correctness | **PASS** | Incremental/full replay, delayed fills, immutable state/config and enforcing batch behavior passed. New realtime bars must be complete UTC hours with open timestamps at most two hours old; queued expiry is rejected. |
 | 13 | Risk enforcement and halt behavior | **PASS** | Actual entry veto, closure after halt, no reversal/new exposure and storage latch verified. Valid operator requests immediately report halt; unstarted candles are rejected until durable HALT. An already submitted write may finish. |
 | 14 | Persistence, replay and idempotency | **PASS** | Atomic single-owner journal, fsync, full record shape, sequence/conflict/replay and copy checks passed. V2 identity ignores object key order; legacy configuration hashes retain original ordering. restoreHalted returns only after durable HALT and handles uncertain writes; failure rejects recovery. |
-| 15 | Reproducible end-to-end research report | **PASS** | Corrected real CEX report and frozen dataset retained. Repeated clean-tree research sections and exact CI summary/benchmark/gates match. Unchanged configuration/dataset/passive benchmark verified; failed acceptance returns exit 1; DEX HTTP 401 artifact retained. |
-| 16 | CI reliability | **PASS** | CI, Validation and Security passed on 31434ee. Downloaded Evidence artifacts confirm provider HTTP 401 and corrected failed strategy acceptance. Later commits require separate CI. |
+| 15 | Reproducible end-to-end research report | **PASS** | Clean frozen CEX and free recent DEX reports retained. Repeated recent research sections and exact CI dataset/results/gates match; failed acceptance returns exit 1. Required 2025 DEX HTTP 401 artifact retained; supplemental scope cannot satisfy that gate. |
+| 16 | CI reliability | **PASS** | CI, Validation and Security passed on d1d4a90. Downloaded Evidence artifacts confirm required 2025 provider HTTP 401, unchanged corrected CEX failures and matching free recent DEX negative results. Later commits require separate CI. |
 | 17 | Required paper-trading acceptance evidence | **BLOCKED** | No elapsed realtime session, frozen duration/regime policy, or accepted strategy exists. Historical replay and synthetic regression tests cannot satisfy this gate. |
 
 ## Measured CEX experiment

@@ -61,6 +61,6 @@ export function parseCandleCsv(csv: string, options: CsvCandleOptions = {}): His
   return candles;
 }
 
-export function toBacktestCandles(candles: readonly HistoricalCandle[]): Candle[] {
-  return candles.map(({ open, high, low, close }) => ({ open, high, low, close }));
+export function toBacktestCandles(candles: readonly HistoricalCandle[]): HistoricalCandle[] {
+  return candles.map((candle) => ({ ...candle }));
 }

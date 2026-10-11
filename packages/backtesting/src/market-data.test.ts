@@ -8,7 +8,8 @@ describe("historical market data", () => {
     const candles = parseCandleCsv(csv);
     expect(candles).toHaveLength(2);
     expect(candles[0]).toEqual({ timestamp: 1000, open: 100, high: 105, low: 99, close: 104, volume: 500 });
-    expect(toBacktestCandles(candles)[1]).toEqual({ open: 104, high: 108, low: 103, close: 107 });
+    expect(toBacktestCandles(candles)[1]).toEqual(candles[1]);
+    expect(toBacktestCandles(candles)[1]).not.toBe(candles[1]);
   });
 
   it("rejects non-monotonic timestamps", () => {

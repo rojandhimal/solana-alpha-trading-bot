@@ -108,11 +108,28 @@ function evaluateOptimizedAcceptance(
   optimized: WalkForwardPipelineResult,
   thresholds: ResearchAcceptanceThresholds,
   initialCapital: number,
+  trainingParameterStability: readonly ParameterStabilityReport[],
 ): ResearchAcceptanceReport {
+  const stressReports = optimized.windows.map((window) => window.test.robustness);
   const acceptanceEvidence = {
     outOfSample: optimized.outOfSample,
     profitableWindowPct: optimized.consistency.profitableWindowPct,
-    stressRobustness: optimized.robustness,
+    // Walk-forward consistency is a separate report from execution stress.
+    // Every OOS window must meet the configured stress acceptance floor.
+    stressRobustness: {
+      passed: stressReports.length > 0 && stressReports.every((report) => report.passed),
+      passingScenarioRatePct: stressReports.length === 0
+        ? 0
+        : Math.min(...stressReports.map((report) => report.passingScenarioRatePct)),
+    },
+    ...(trainingParameterStability.length > 0
+      ? {
+          parameterStability: {
+            stable: trainingParameterStability.length === optimized.windows.length &&
+              trainingParameterStability.every((report) => report.stable),
+          },
+        }
+      : {}),
     ...(optimized.outOfSampleTrades.length > 0
       ? {
           monteCarlo: runMonteCarloTradeRobustness({
@@ -188,6 +205,7 @@ export async function runHistoricalExperiment(
           optimized,
           config.acceptanceThresholds,
           config.initialCapital,
+          trainingParameterStability,
         );
 
   return {
